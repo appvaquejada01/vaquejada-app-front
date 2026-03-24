@@ -525,7 +525,7 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
               >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    {getCategoryNameMap(categoria.category.name)}
+                    {getCategoryNameMap(categoria.category.name, categoria.category.description)}
                   </CardTitle>
                   <CardDescription className="text-lg font-semibold text-primary flex items-center gap-1">
                     {formatPrice(Number(categoria.price) || 0)}
@@ -581,7 +581,7 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
                 <div>
                   <h3 className="text-xl font-semibold flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
-                    {getCategoryNameMap(selectedCategory.category.name)}
+                    {getCategoryNameMap(selectedCategory.category.name, selectedCategory.category.description)}
                   </h3>
                   <p className="text-muted-foreground mt-1">
                     {formatPrice(Number(selectedCategory.price) || 0)} por senha
@@ -721,7 +721,7 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
                     <div>
                       <span className="text-muted-foreground">Categoria:</span>
                       <p className="font-medium">
-                        {getCategoryNameMap(selectedCategory.category.name)}
+                        {getCategoryNameMap(selectedCategory.category.name, selectedCategory.category.description)}
                       </p>
                     </div>
                     <div>
@@ -899,7 +899,7 @@ export const CategoriasTab: React.FC<CategoriasTabProps> = ({
                 {selectedNumbers.length} senha
                 {selectedNumbers.length !== 1 ? "s" : ""} -{" "}
                 {selectedCategory &&
-                  getCategoryNameMap(selectedCategory.category.name)}
+                  getCategoryNameMap(selectedCategory.category.name, selectedCategory.category.description)}
               </p>
             </div>
 

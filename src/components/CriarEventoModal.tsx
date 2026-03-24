@@ -55,7 +55,7 @@ import {
   addJudgeToEvent,
   addSpeakerToEvent,
 } from "@/lib/services/staff.service";
-import { listCategories } from "@/lib/services/category.service";
+import { listCategories, createCategory } from "@/lib/services/category.service";
 import { GetUserResponse } from "@/types/api";
 import { getCategoryNameMap } from "@/types/enums/enum-maps";
 
@@ -196,6 +196,9 @@ export const CriarEventoModal = ({
   const [eventCategories, setEventCategories] = useState<EventCategoryForm[]>(
     []
   );
+  const [showCreateCategory, setShowCreateCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -315,14 +318,14 @@ export const CriarEventoModal = ({
         setAvailableCategories(
           response.data.map((cat: any) => ({
             id: cat.category?.id || cat.id,
-            name: getCategoryNameMap(cat.name as CategoryNameEnum),
+            name: getCategoryNameMap(cat.name as CategoryNameEnum, cat.description),
           }))
         );
       } else if (Array.isArray(response)) {
         setAvailableCategories(
           response.map((cat: any) => ({
             id: cat.category?.id || cat.id,
-            name: getCategoryNameMap(cat.name as CategoryNameEnum),
+            name: getCategoryNameMap(cat.name as CategoryNameEnum, cat.description),
           }))
         );
       }
@@ -360,33 +363,12 @@ export const CriarEventoModal = ({
       return;
     }
 
-    const img = document.createElement("img");
-    img.onload = () => {
-      const isPortrait = img.height > img.width;
-      if (!isPortrait) {
-        toast({
-          title: "Imagem inadequada",
-          description: "O banner deve estar em formato retrato (vertical)",
-          variant: "destructive",
-        });
-        return;
-      }
+    const previewUrl = URL.createObjectURL(file);
+    setSelectedImage({ file, preview: previewUrl });
 
-      const previewUrl = URL.createObjectURL(file);
-      setSelectedImage({ file, preview: previewUrl });
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    };
-    img.onerror = () => {
-      toast({
-        title: "Erro na imagem",
-        description: "Não foi possível carregar a imagem selecionada",
-        variant: "destructive",
-      });
-    };
-    img.src = URL.createObjectURL(file);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const removeSelectedImage = () => {
@@ -465,6 +447,45 @@ export const CriarEventoModal = ({
       });
     } finally {
       setCreatingStaff(false);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Digite o nome da nova categoria",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingCategory(true);
+    try {
+      const response = await createCategory({
+        name: CategoryNameEnum.CUSTOM,
+        description: newCategoryName.trim(),
+      });
+
+      const newCat = {
+        id: response.id,
+        name: newCategoryName.trim(),
+      };
+      setAvailableCategories((prev) => [...prev, newCat]);
+      setNewCategoryName("");
+      setShowCreateCategory(false);
+      toast({
+        title: "Categoria criada!",
+        description: `A categoria "${newCategoryName.trim()}" foi criada com sucesso.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao criar categoria",
+        description: error?.response?.data?.message || "Tente novamente",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingCategory(false);
     }
   };
 
@@ -593,12 +614,12 @@ export const CriarEventoModal = ({
         formDataToSend.append("description", formData.description);
         formDataToSend.append(
           "startAt",
-          new Date(formData.startAt).toISOString()
+          `${formData.startAt}T12:00:00.000Z`
         );
-        formDataToSend.append("endAt", new Date(formData.endAt).toISOString());
+        formDataToSend.append("endAt", `${formData.endAt}T12:00:00.000Z`);
         formDataToSend.append(
           "purchaseClosedAt",
-          new Date(formData.purchaseClosedAt).toISOString()
+          `${formData.purchaseClosedAt}T12:00:00.000Z`
         );
         formDataToSend.append("status", formData.status);
         formDataToSend.append("isPublic", formData.isPublic.toString());
@@ -640,9 +661,9 @@ export const CriarEventoModal = ({
           address: formData.address || undefined,
           city: formData.city || undefined,
           state: formData.state || undefined,
-          startAt: new Date(formData.startAt).toISOString(),
-          endAt: new Date(formData.endAt).toISOString(),
-          purchaseClosedAt: new Date(formData.purchaseClosedAt).toISOString(),
+          startAt: `${formData.startAt}T12:00:00.000Z`,
+          endAt: `${formData.endAt}T12:00:00.000Z`,
+          purchaseClosedAt: `${formData.purchaseClosedAt}T12:00:00.000Z`,
           status: formData.status,
           isPublic: formData.isPublic,
           cattlePerPassword: formData.cattlePerPassword
@@ -692,8 +713,8 @@ export const CriarEventoModal = ({
                 maxRunners: Number(cat.maxRunners) || 0,
                 passwordLimit: Number(cat.passwordLimit) || 0,
                 startAt:
-                  cat.startAt || new Date(formData.startAt).toISOString(),
-                endAt: cat.endAt || new Date(formData.endAt).toISOString(),
+                  cat.startAt ? `${cat.startAt}T12:00:00.000Z` : `${formData.startAt}T12:00:00.000Z`,
+                endAt: cat.endAt ? `${cat.endAt}T12:00:00.000Z` : `${formData.endAt}T12:00:00.000Z`,
               })
             );
             try {
@@ -1228,11 +1249,11 @@ export const CriarEventoModal = ({
               )}
             </div>
 
-            {/* Datas e Horários */}
+            {/* Datas */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
-                Datas e Horários
+                Datas
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1242,7 +1263,7 @@ export const CriarEventoModal = ({
                   </Label>
                   <Input
                     id="startAt"
-                    type="datetime-local"
+                    type="date"
                     value={formData.startAt}
                     onChange={(e) =>
                       handleInputChange("startAt", e.target.value)
@@ -1259,7 +1280,7 @@ export const CriarEventoModal = ({
                   </Label>
                   <Input
                     id="endAt"
-                    type="datetime-local"
+                    type="date"
                     value={formData.endAt}
                     onChange={(e) => handleInputChange("endAt", e.target.value)}
                     required
@@ -1277,7 +1298,7 @@ export const CriarEventoModal = ({
                   </Label>
                   <Input
                     id="purchaseClosedAt"
-                    type="datetime-local"
+                    type="date"
                     value={formData.purchaseClosedAt}
                     onChange={(e) =>
                       handleInputChange("purchaseClosedAt", e.target.value)
@@ -1537,7 +1558,7 @@ export const CriarEventoModal = ({
 
             {/* Categorias do Evento */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-2">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Tag className="h-4 w-4 text-primary" />
                   Categorias do Evento
@@ -1553,6 +1574,55 @@ export const CriarEventoModal = ({
                   Adicionar Categoria
                 </Button>
               </div>
+
+              {/* Criar nova categoria */}
+              {!showCreateCategory ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-primary"
+                  onClick={() => setShowCreateCategory(true)}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Criar nova categoria personalizada
+                </Button>
+              ) : (
+                <Card className="p-4 border-2 border-primary/20 bg-primary/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-semibold">Nova Categoria</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowCreateCategory(false);
+                        setNewCategoryName("");
+                      }}
+                      className="h-7 w-7 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Nome da categoria (ex: Amador Regional)"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      className="h-9 text-sm rounded-lg flex-1"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleCreateCategory}
+                      disabled={creatingCategory}
+                      className="rounded-lg"
+                    >
+                      {creatingCategory ? "Criando..." : "Criar"}
+                    </Button>
+                  </div>
+                </Card>
+              )}
 
               {eventCategories.length === 0 && (
                 <p className="text-xs text-muted-foreground">
@@ -1703,45 +1773,9 @@ export const CriarEventoModal = ({
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs">Senha Inicial</Label>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={cat.initialPassword}
-                        onChange={(e) =>
-                          updateEventCategoryField(
-                            index,
-                            "initialPassword",
-                            e.target.value
-                          )
-                        }
-                        min="0"
-                        className="h-9 text-sm rounded-lg"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">Senha Final</Label>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={cat.finalPassword}
-                        onChange={(e) =>
-                          updateEventCategoryField(
-                            index,
-                            "finalPassword",
-                            e.target.value
-                          )
-                        }
-                        min="0"
-                        className="h-9 text-sm rounded-lg"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
                       <Label className="text-xs">Início</Label>
                       <Input
-                        type="datetime-local"
+                        type="date"
                         value={cat.startAt}
                         onChange={(e) =>
                           updateEventCategoryField(
@@ -1757,7 +1791,7 @@ export const CriarEventoModal = ({
                     <div className="space-y-1">
                       <Label className="text-xs">Término</Label>
                       <Input
-                        type="datetime-local"
+                        type="date"
                         value={cat.endAt}
                         onChange={(e) =>
                           updateEventCategoryField(
@@ -1772,6 +1806,19 @@ export const CriarEventoModal = ({
                   </div>
                 </Card>
               ))}
+
+              {eventCategories.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl w-full"
+                  onClick={addEventCategory}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Adicionar Outra Categoria
+                </Button>
+              )}
             </div>
 
             {/* Regras do Evento */}
@@ -1782,29 +1829,6 @@ export const CriarEventoModal = ({
               </h3>
 
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="cattlePerPassword"
-                    className="text-sm font-medium"
-                  >
-                    Quantidade de Boi por Senha
-                  </Label>
-                  <Input
-                    id="cattlePerPassword"
-                    type="number"
-                    min="1"
-                    placeholder="Ex: 2"
-                    value={formData.cattlePerPassword}
-                    onChange={(e) =>
-                      handleInputChange("cattlePerPassword", e.target.value)
-                    }
-                    className="rounded-xl border-2 focus:border-primary/50 w-full md:w-1/3"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Quantidade de bois que o juiz irá avaliar por senha/passada
-                  </p>
-                </div>
-
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3">
                     <Checkbox

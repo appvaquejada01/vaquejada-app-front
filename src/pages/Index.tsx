@@ -25,13 +25,14 @@ import { formatDate } from "@/utils/format-data.util";
 import { CountdownTimer } from "../components/CountdownTimer";
 import { Header } from "@/components/ui/header";
 import { Footer } from "@/components/ui/footer";
-import { UserRoleEnum } from "@/types/enums/api-enums";
+import { UserRoleEnum, EventStatusEnum } from "@/types/enums/api-enums";
 
 const Index = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const [events, setEvents] = useState<ListEventResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showFinished, setShowFinished] = useState(false);
 
   useEffect(() => {
     async function fetchEvents() {
@@ -48,7 +49,21 @@ const Index = () => {
     fetchEvents();
   }, []);
 
-  const filteredEvents = events.filter(
+  const activeEvents = events.filter(
+    (event) =>
+      event.status !== EventStatusEnum.FINISHED &&
+      event.status !== EventStatusEnum.CANCELLED
+  );
+
+  const finishedEvents = events.filter(
+    (event) =>
+      event.status === EventStatusEnum.FINISHED ||
+      event.status === EventStatusEnum.CANCELLED
+  );
+
+  const displayedEvents = showFinished ? finishedEvents : activeEvents;
+
+  const filteredEvents = displayedEvents.filter(
     (event) =>
       event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       event.city?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -115,19 +130,30 @@ const Index = () => {
           <div className="flex flex-col sm:flex-row items-center justify-between mb-10">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                Próximos Eventos
+                {showFinished ? "Eventos Encerrados" : "Próximos Eventos"}
               </h2>
               <p className="text-muted-foreground text-base">
-                Descubra as melhores vaquejadas da sua região
+                {showFinished
+                  ? "Eventos que já foram realizados"
+                  : "Descubra as melhores vaquejadas da sua região"}
               </p>
             </div>
-            <Button
-              variant="outline"
-              className="mt-4 sm:mt-0 rounded-xl border-2 hover:border-primary/50 transition-all group"
-            >
-              <span>Ver todos</span>
-              <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
+            <div className="flex gap-2 mt-4 sm:mt-0">
+              <Button
+                variant={!showFinished ? "default" : "outline"}
+                className="rounded-xl border-2 transition-all"
+                onClick={() => setShowFinished(false)}
+              >
+                Próximos ({activeEvents.length})
+              </Button>
+              <Button
+                variant={showFinished ? "default" : "outline"}
+                className="rounded-xl border-2 transition-all"
+                onClick={() => setShowFinished(true)}
+              >
+                Encerrados ({finishedEvents.length})
+              </Button>
+            </div>
           </div>
 
           {loading ? (

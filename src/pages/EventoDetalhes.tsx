@@ -431,10 +431,10 @@ const EventoDetalhes = () => {
                           <Trophy className="h-5 w-5 text-primary" />
                           <div>
                             <p className="font-medium text-sm text-foreground">
-                              Permiação
+                              Premiação
                             </p>
                             <p className="text-muted-foreground">
-                              {evento.prize
+                              {evento.prize && Number(evento.prize) > 0
                                 ? formatPrice(Number(evento.prize))
                                 : "Sem premiação"}
                             </p>

@@ -19,7 +19,22 @@ export function formatPhone(value: string): string {
 }
 
 export const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString("pt-BR", {
+  // Fix timezone issue: date-only strings (YYYY-MM-DD) are parsed as UTC
+  // which can show 1 day less in negative timezone offsets (e.g. Brazil)
+  const date = new Date(dateString);
+  if (dateString && dateString.length === 10) {
+    // Date-only string: parse as local date
+    const [year, month, day] = dateString.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  }
+  // Add timezone offset to prevent day shift for ISO strings
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() + offset * 60000);
+  return localDate.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

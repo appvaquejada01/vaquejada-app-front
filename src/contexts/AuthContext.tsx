@@ -57,8 +57,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (userData.role === UserRoleEnum.ADMIN) {
       navigate("/admin/dashboard");
-    } else if (userData.role === UserRoleEnum.RUNNER) {
-      navigate("/perfil-corredor");
     } else {
       navigate("/");
     }

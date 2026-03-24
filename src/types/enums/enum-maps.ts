@@ -16,9 +16,13 @@ const categoryNameMap: Record<CategoryNameEnum, string> = {
   [CategoryNameEnum.DERBY]: "Derby",
   [CategoryNameEnum.ASPIRANT]: "Aspirante",
   [CategoryNameEnum.YOUNG]: "Jovem",
+  [CategoryNameEnum.CUSTOM]: "Personalizada",
 };
 
-export const getCategoryNameMap = (categoria: CategoryNameEnum) => {
+export const getCategoryNameMap = (categoria: CategoryNameEnum, description?: string) => {
+  if (categoria === CategoryNameEnum.CUSTOM && description) {
+    return description;
+  }
   return categoryNameMap[categoria] ?? categoria;
 };
 

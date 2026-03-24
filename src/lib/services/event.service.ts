@@ -70,6 +70,10 @@ export async function createEventCategory(eventCategoryData: {
   startAt: string;
   endAt: string;
   maxRunners: number;
+  cattleQuantity?: number;
+  prize?: number;
+  initialPassword?: number;
+  finalPassword?: number;
 }) {
   try {
     const response = await api.post("/event-categories", eventCategoryData);
@@ -89,6 +93,8 @@ export async function updateEventCategory(
     startAt: string;
     endAt: string;
     maxRunners: number;
+    cattleQuantity: number;
+    prize: number;
   }>
 ) {
   try {

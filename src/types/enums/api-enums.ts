@@ -37,6 +37,7 @@ export enum CategoryNameEnum {
   ASPIRANT = "aspirant",
   MASTER = "master",
   YOUNG = "young",
+  CUSTOM = "custom",
 }
 
 export enum SubscriptionStatusEnum {

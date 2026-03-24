@@ -210,9 +210,9 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         const response = await listCategories();
         if (response.data && Array.isArray(response.data)) {
           setCategoriasDoEventoDisponiveis(
-            response.data.map((cat) => ({
+            response.data.map((cat: any) => ({
               id: cat.category?.id || cat.id,
-              name: getCategoryNameMap(cat.name as CategoryNameEnum),
+              name: getCategoryNameMap(cat.name as CategoryNameEnum, cat.description),
             }))
           );
         }
@@ -383,7 +383,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
 
       setFormData({
         name: evento.name || "",
-        prize: evento.prize ? formatCurrency(evento.prize) : "",
+        prize: evento.prize ? String(evento.prize) : "",
         startAt: evento.startAt
           ? new Date(evento.startAt).toISOString().split("T")[0]
           : "",
@@ -604,9 +604,10 @@ export const EventosTab: React.FC<EventosTabProps> = ({
 
       const updatedData: CreateEventDto = {
         name: formData.name,
-        startAt: formData.startAt,
-        endAt: formData.endAt,
-        purchaseClosedAt: formData.purchaseClosedAt,
+        startAt: formData.startAt.includes("T") ? formData.startAt : `${formData.startAt}T12:00:00.000Z`,
+        endAt: formData.endAt.includes("T") ? formData.endAt : `${formData.endAt}T12:00:00.000Z`,
+        purchaseClosedAt: formData.purchaseClosedAt.includes("T") ? formData.purchaseClosedAt : `${formData.purchaseClosedAt}T12:00:00.000Z`,
+        prize: formData.prize || undefined,
         address: formData.address,
         city: formData.city,
         state: formData.state,
@@ -617,18 +618,18 @@ export const EventosTab: React.FC<EventosTabProps> = ({
       await updateEvent(editingEvent!.id, updatedData);
 
       for (const categoria of categoriasDoEvento) {
+        const catStartAt = categoria.startAt && !categoria.startAt.includes("T") ? `${categoria.startAt}T12:00:00.000Z` : categoria.startAt;
+        const catEndAt = categoria.endAt && !categoria.endAt.includes("T") ? `${categoria.endAt}T12:00:00.000Z` : categoria.endAt;
         const eventCategoryData = {
           eventId: editingEvent!.id,
           categoryId: categoria.categoryId,
           price: Number(categoria.price),
-          startAt: categoria.startAt,
-          endAt: categoria.endAt,
+          startAt: catStartAt,
+          endAt: catEndAt,
           maxRunners: Number(categoria.maxRunners),
           passwordLimit: Number(categoria.passwordLimit),
           cattleQuantity: Number(categoria.cattleQuantity) || 0,
           prize: Number(categoria.prize) || 0,
-          initialPassword: Number(categoria.initialPassword),
-          finalPassword: Number(categoria.finalPassword),
         };
 
         if (categoria.id) {
@@ -1176,7 +1177,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
               {/* Categorias do Evento */}
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between sticky top-0 z-10 bg-card py-2">
                     <CardTitle>Categorias do Evento</CardTitle>
                     <Button onClick={addCategoria} className="gap-2">
                       <Plus className="h-4 w-4" />
@@ -1330,48 +1331,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                             placeholder="0.00"
                             min="0"
                             step="0.01"
-                            className="bg-background"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor={`initialPassword-${index}`}>
-                            Senha Inicial
-                          </Label>
-                          <Input
-                            id={`initialPassword-${index}`}
-                            type="number"
-                            value={categoria.initialPassword}
-                            onChange={(e) =>
-                              updateCategoria(
-                                index,
-                                "initialPassword",
-                                e.target.value
-                              )
-                            }
-                            placeholder="0"
-                            min="0"
-                            className="bg-background"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor={`finalPassword-${index}`}>
-                            Senha Final
-                          </Label>
-                          <Input
-                            id={`finalPassword-${index}`}
-                            type="number"
-                            value={categoria.finalPassword}
-                            onChange={(e) =>
-                              updateCategoria(
-                                index,
-                                "finalPassword",
-                                e.target.value
-                              )
-                            }
-                            placeholder="0"
-                            min="0"
                             className="bg-background"
                           />
                         </div>
@@ -1615,7 +1574,7 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                 )}
               </Card>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex justify-end gap-3 pt-4 border-t sticky bottom-0 bg-background z-10 pb-2">
                 <Button
                   variant="outline"
                   onClick={() => setIsEditModalOpen(false)}
