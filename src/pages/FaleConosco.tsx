@@ -136,7 +136,6 @@ const FaleConosco = () => {
         title="Vaquejada APP"
       />
 
-      {/* Hero Section */}
       <section className="relative py-16 px-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-muted/20"></div>
         <div className="absolute top-10 left-10 w-56 h-56 bg-primary/10 rounded-full blur-3xl"></div>
@@ -155,7 +154,6 @@ const FaleConosco = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {/* Contact Form */}
             <div className="md:col-span-2">
               <Card className="border-2 shadow-xl">
                 <CardHeader>
@@ -190,7 +188,6 @@ const FaleConosco = () => {
                     </div>
                   ) : (
                     <form onSubmit={handleSubmit} className="space-y-6">
-                      {/* Nome */}
                       <div className="space-y-2">
                         <Label htmlFor="name" className="flex items-center gap-2">
                           Nome <span className="text-red-500">*</span>
@@ -206,7 +203,6 @@ const FaleConosco = () => {
                         />
                       </div>
 
-                      {/* Email */}
                       <div className="space-y-2">
                         <Label htmlFor="email" className="flex items-center gap-2">
                           Email <span className="text-red-500">*</span>
@@ -223,7 +219,6 @@ const FaleConosco = () => {
                         />
                       </div>
 
-                      {/* WhatsApp */}
                       <div className="space-y-2">
                         <Label htmlFor="whatsapp">WhatsApp</Label>
                         <Input
@@ -240,7 +235,6 @@ const FaleConosco = () => {
                         </p>
                       </div>
 
-                      {/* Assunto */}
                       <div className="space-y-2">
                         <Label htmlFor="subject" className="flex items-center gap-2">
                           Assunto <span className="text-red-500">*</span>
@@ -264,7 +258,6 @@ const FaleConosco = () => {
                         </Select>
                       </div>
 
-                      {/* Mensagem */}
                       <div className="space-y-2">
                         <Label htmlFor="message" className="flex items-center gap-2">
                           Mensagem <span className="text-red-500">*</span>
@@ -284,7 +277,6 @@ const FaleConosco = () => {
                         </p>
                       </div>
 
-                      {/* Submit Button */}
                       <Button
                         type="submit"
                         size="lg"
@@ -314,9 +306,7 @@ const FaleConosco = () => {
               </Card>
             </div>
 
-            {/* Contact Info Sidebar */}
             <div className="space-y-6">
-              {/* Info Card */}
               <Card className="border-2 bg-gradient-to-br from-primary/5 to-secondary/5">
                 <CardHeader>
                   <CardTitle className="text-xl">
@@ -370,7 +360,6 @@ const FaleConosco = () => {
                 </CardContent>
               </Card>
 
-              {/* FAQ Card */}
               <Card className="border-2">
                 <CardHeader>
                   <CardTitle className="text-xl flex items-center gap-2">
@@ -386,7 +375,6 @@ const FaleConosco = () => {
                 </CardContent>
               </Card>
 
-              {/* Response Time */}
               <div className="p-4 bg-green-50 border-2 border-green-200 rounded-xl">
                 <div className="flex items-start gap-2">
                   <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />

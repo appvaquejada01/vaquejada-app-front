@@ -90,7 +90,6 @@ export const InscricoesTab: React.FC<InscricoesTabProps> = ({
           </div>
         </div>
 
-        {/* Filtros */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -102,7 +101,6 @@ export const InscricoesTab: React.FC<InscricoesTabProps> = ({
             />
           </div>
 
-          {/* Filtro de evento */}
           <select
             value={filtroEvento}
             onChange={(e) => onFiltroEventoChange(e.target.value)}
@@ -121,7 +119,6 @@ export const InscricoesTab: React.FC<InscricoesTabProps> = ({
             })}
           </select>
 
-          {/* Filtro de categoria */}
           <select
             value={filtroCategoria}
             onChange={(e) => onFiltroCategoriaChange(e.target.value)}
@@ -135,7 +132,6 @@ export const InscricoesTab: React.FC<InscricoesTabProps> = ({
             ))}
           </select>
 
-          {/* Filtro de status */}
           <select
             value={filtroStatus}
             onChange={(e) => onFiltroStatusChange(e.target.value)}

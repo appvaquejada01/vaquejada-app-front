@@ -943,14 +943,12 @@ export const CriarEventoModal = ({
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            {/* Informações Básicas */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" />
                 Informações Básicas
               </h3>
 
-              {/* Nome do Evento */}
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-sm font-medium">
                   Nome do Evento *
@@ -993,7 +991,6 @@ export const CriarEventoModal = ({
                 />
               </div>
 
-              {/* Descrição */}
               <div className="space-y-2">
                 <Label htmlFor="description" className="text-sm font-medium">
                   Descrição do Evento *
@@ -1015,7 +1012,6 @@ export const CriarEventoModal = ({
                 </p>
               </div>
 
-              {/* Upload de Banner */}
               <div className="space-y-3">
                 <Label className="text-sm font-medium">
                   Banner do Evento (Opcional)
@@ -1133,7 +1129,6 @@ export const CriarEventoModal = ({
               </div>
             </div>
 
-            {/* Localização com Google Places */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-primary" />
@@ -1208,7 +1203,6 @@ export const CriarEventoModal = ({
                 </div>
               </div>
 
-              {/* Mapa do Google */}
               {(formData.address || formData.city) && (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium flex items-center gap-2">
@@ -1249,7 +1243,6 @@ export const CriarEventoModal = ({
               )}
             </div>
 
-            {/* Datas */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
@@ -1312,7 +1305,6 @@ export const CriarEventoModal = ({
               </div>
             </div>
 
-            {/* Configurações */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Globe className="h-4 w-4 text-primary" />
@@ -1369,14 +1361,12 @@ export const CriarEventoModal = ({
               </div>
             </div>
 
-            {/* Equipe do Evento */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
                 Equipe do Evento
               </h3>
 
-              {/* Juízes */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium flex items-center gap-2">
@@ -1463,7 +1453,6 @@ export const CriarEventoModal = ({
                 )}
               </div>
 
-              {/* Locutores */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium flex items-center gap-2">
@@ -1556,7 +1545,6 @@ export const CriarEventoModal = ({
               </div>
             </div>
 
-            {/* Categorias do Evento */}
             <div className="space-y-4">
               <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-2">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -1575,7 +1563,6 @@ export const CriarEventoModal = ({
                 </Button>
               </div>
 
-              {/* Criar nova categoria */}
               {!showCreateCategory ? (
                 <Button
                   type="button"
@@ -1821,7 +1808,6 @@ export const CriarEventoModal = ({
               )}
             </div>
 
-            {/* Regras do Evento */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-primary" />
@@ -1898,7 +1884,6 @@ export const CriarEventoModal = ({
             </div>
           </div>
 
-          {/* Botões de Ação */}
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button
               type="button"

@@ -50,12 +50,10 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-primary/5 flex items-center justify-center p-4">
-      {/* Background Elements */}
       <div className="absolute top-10 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-accent/10 rounded-full blur-3xl"></div>
 
       <div className="w-full max-w-lg relative z-10">
-        {/* Header */}
         <div className="text-center mb-8">
           <Link
             to="/"
@@ -97,7 +95,6 @@ const AdminLogin = () => {
 
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email */}
               <div className="space-y-3">
                 <Label htmlFor="admin-email" className="text-sm font-medium">
                   E-mail administrativo
@@ -113,7 +110,6 @@ const AdminLogin = () => {
                 />
               </div>
 
-              {/* Senha */}
               <div className="space-y-3">
                 <Label htmlFor="admin-password" className="text-sm font-medium">
                   Senha
@@ -129,7 +125,6 @@ const AdminLogin = () => {
                 />
               </div>
 
-              {/* Botão de Submit */}
               <Button
                 className="w-full rounded-xl py-3 text-base font-medium shadow-lg hover:shadow-xl transition-all bg-gradient-vaquejada hover:opacity-90 group"
                 size="lg"
@@ -150,7 +145,6 @@ const AdminLogin = () => {
               </Button>
             </form>
 
-            {/* Informações de Acesso */}
             <div className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-xl p-5 border border-primary/20">
               <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-primary" />
@@ -176,7 +170,6 @@ const AdminLogin = () => {
               </div>
             </div>
 
-            {/* Divisor */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -188,7 +181,6 @@ const AdminLogin = () => {
               </div>
             </div>
 
-            {/* Link para Cadastro */}
             <div className="text-center">
               <Button
                 variant="outline"
@@ -207,7 +199,6 @@ const AdminLogin = () => {
           </CardContent>
         </Card>
 
-        {/* Footer Informativo */}
         <div className="text-center mt-6">
           <p className="text-sm text-muted-foreground">
             Precisa de ajuda?{" "}

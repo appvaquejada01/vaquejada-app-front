@@ -39,7 +39,6 @@ export const CriarUsuarioModal = ({
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
 
-  // Estados para os campos do formulário baseados na entidade
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -68,7 +67,6 @@ export const CriarUsuarioModal = ({
     setLoading(true);
 
     try {
-      // Validações básicas
       if (!formData.name || formData.name.length < 3) {
         toast({
           title: "Nome muito curto",
@@ -109,7 +107,6 @@ export const CriarUsuarioModal = ({
         return;
       }
 
-      // Preparar dados para a API
       const userData: CreateFullUser = {
         name: formData.name,
         email: formData.email,
@@ -121,10 +118,9 @@ export const CriarUsuarioModal = ({
         city: formData.city || undefined,
         state: formData.state || undefined,
         isActive: formData.isActive,
-        organizerId: "", // Ajuste conforme necessário
+        organizerId: "",
       };
 
-      // Chamar a API para criar o usuário
       const response = await createFullUser(userData);
 
       if (response) {
@@ -136,7 +132,6 @@ export const CriarUsuarioModal = ({
         setOpen(false);
         resetForm();
 
-        // Chama o callback para atualizar a lista
         if (onUsuarioCriado) {
           onUsuarioCriado();
         }
@@ -234,7 +229,6 @@ export const CriarUsuarioModal = ({
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            {/* Informações Pessoais */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <User className="h-4 w-4 text-primary" />
@@ -318,7 +312,6 @@ export const CriarUsuarioModal = ({
               </div>
             </div>
 
-            {/* Informações de Acesso */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary" />
@@ -376,7 +369,6 @@ export const CriarUsuarioModal = ({
               </div>
             </div>
 
-            {/* Localização */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-primary" />
@@ -421,7 +413,6 @@ export const CriarUsuarioModal = ({
               </div>
             </div>
 
-            {/* Configurações do Usuário */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Shield className="h-4 w-4 text-primary" />
@@ -475,7 +466,6 @@ export const CriarUsuarioModal = ({
             </div>
           </div>
 
-          {/* Botões de Ação */}
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button
               type="button"

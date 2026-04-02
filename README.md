@@ -1,73 +1,58 @@
-# Welcome to your Lovable project
+# Vaquejada App - Frontend
 
-## Project info
+Interface do sistema de vaquejada. Aqui o vaqueiro encontra eventos, compra senhas e se inscreve. O admin gerencia tudo pelo dashboard — eventos, usuarios, categorias e inscricoes. Juizes e locutores tem suas proprias telas.
 
-**URL**: https://lovable.dev/projects/602edfce-e1d6-42fc-ab64-108eb35da43d
+## Tecnologias
 
-## How can I edit this code?
+- **React 18** com TypeScript
+- **Vite** como bundler
+- **Tailwind CSS** para estilizacao
+- **shadcn/ui** como biblioteca de componentes (baseada em Radix UI)
+- **React Hook Form** + **Zod** para formularios e validacao
+- **TanStack React Query** para gerenciamento de dados do servidor
+- **React Router v6** para navegacao
+- **Axios** para chamadas HTTP
+- **Recharts** para graficos no painel administrativo
 
-There are several ways of editing your application.
+## Paginas do sistema
 
-**Use Lovable**
+| Area | O que tem |
+|---|---|
+| **Publica** | Landing page, login, cadastro, listagem de eventos, detalhes do evento |
+| **Vaqueiro** | Perfil, compra de senhas, minhas inscricoes |
+| **Admin** | Dashboard completo — gerencia usuarios, eventos, categorias e inscricoes |
+| **Staff** | Tela de votacao do juiz e tela do locutor |
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/602edfce-e1d6-42fc-ab64-108eb35da43d) and start prompting.
+## Configuracao
 
-Changes made via Lovable will be committed automatically to this repo.
+1. Instale as dependencias:
+```bash
+npm install
+# ou
+yarn
+```
 
-**Use your preferred IDE**
+2. Crie o arquivo `.env`:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+| Variavel | Para que serve |
+|---|---|
+| `VITE_API_URL` | URL do backend (ex: `http://localhost:3000`) |
+| `VITE_GOOGLE_MAPS_API_KEY` | Chave do Google Maps — opcional, usado para localizacao dos eventos |
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. Inicie o servidor de desenvolvimento:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+O app vai rodar em `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Build e preview
 
-**Use GitHub Codespaces**
+```bash
+npm run build      # gera o build de producao na pasta dist/
+npm run preview    # serve o build localmente para teste
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Deploy
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/602edfce-e1d6-42fc-ab64-108eb35da43d) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Configurado para o **Netlify**. O deploy acontece automaticamente a cada push.

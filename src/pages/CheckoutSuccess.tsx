@@ -165,9 +165,7 @@ const CheckoutSuccess = () => {
             </Card>
           ) : (
             <>
-              {/* Success Hero */}
               <div className="text-center mb-12">
-                {/* Logo */}
                 <div className="mb-8">
                   <img
                     src={logo}
@@ -193,7 +191,6 @@ const CheckoutSuccess = () => {
                 </p>
               </div>
 
-              {/* Payment Details Card */}
               <Card className="border-2 shadow-xl mb-6">
                 <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b">
                   <CardTitle className="flex items-center gap-2 text-green-800">
@@ -263,7 +260,6 @@ const CheckoutSuccess = () => {
                 </CardContent>
               </Card>
 
-              {/* Next Steps Card */}
               <Card className="border-2 bg-gradient-to-br from-primary/5 to-secondary/5 mb-6">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -322,7 +318,6 @@ const CheckoutSuccess = () => {
                 </CardContent>
               </Card>
 
-              {/* Action Buttons */}
               <div className="grid sm:grid-cols-3 gap-4">
                 <Button
                   variant="outline"
@@ -357,7 +352,6 @@ const CheckoutSuccess = () => {
                 </Button>
               </div>
 
-              {/* Help Section */}
               <div className="mt-8 text-center p-6 bg-muted/30 rounded-xl border">
                 <p className="text-sm text-muted-foreground mb-2">
                   Precisa de ajuda ou não recebeu o e-mail?

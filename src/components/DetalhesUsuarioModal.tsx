@@ -53,7 +53,6 @@ export const DetalhesUsuarioModal: React.FC<DetalhesUsuarioModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
 
-  // Estados para os campos do formulário
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -67,7 +66,6 @@ export const DetalhesUsuarioModal: React.FC<DetalhesUsuarioModalProps> = ({
     isActive: true,
   });
 
-  // Atualiza o formData quando o usuário muda
   useEffect(() => {
     if (usuario) {
       setFormData({
@@ -101,7 +99,6 @@ export const DetalhesUsuarioModal: React.FC<DetalhesUsuarioModalProps> = ({
     setLoading(true);
 
     try {
-      // Validações básicas
       if (!formData.name || formData.name.length < 3) {
         toast({
           title: "Nome muito curto",
@@ -122,7 +119,6 @@ export const DetalhesUsuarioModal: React.FC<DetalhesUsuarioModalProps> = ({
         return;
       }
 
-      // Preparar dados para a API (não enviar senha se estiver vazia)
       const userData = {
         name: formData.name,
         email: formData.email,
@@ -135,7 +131,6 @@ export const DetalhesUsuarioModal: React.FC<DetalhesUsuarioModalProps> = ({
         isActive: formData.isActive,
       };
 
-      // Só inclui a senha se foi alterada
       if (formData.password && formData.password.length >= 6) {
         userData.password = formData.password;
       }
@@ -254,7 +249,6 @@ export const DetalhesUsuarioModal: React.FC<DetalhesUsuarioModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Cabeçalho com ações */}
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
@@ -306,7 +300,6 @@ export const DetalhesUsuarioModal: React.FC<DetalhesUsuarioModalProps> = ({
             )}
           </div>
 
-          {/* Informações Pessoais */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <User className="h-4 w-4 text-primary" />
@@ -417,7 +410,6 @@ export const DetalhesUsuarioModal: React.FC<DetalhesUsuarioModalProps> = ({
             </div>
           </div>
 
-          {/* Informações de Acesso */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Mail className="h-4 w-4 text-primary" />
@@ -482,7 +474,6 @@ export const DetalhesUsuarioModal: React.FC<DetalhesUsuarioModalProps> = ({
             )}
           </div>
 
-          {/* Localização */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <MapPin className="h-4 w-4 text-primary" />
@@ -538,7 +529,6 @@ export const DetalhesUsuarioModal: React.FC<DetalhesUsuarioModalProps> = ({
             </div>
           </div>
 
-          {/* Configurações do Usuário */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Shield className="h-4 w-4 text-primary" />

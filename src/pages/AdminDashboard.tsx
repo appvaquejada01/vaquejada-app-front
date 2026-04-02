@@ -394,7 +394,6 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Main Content */}
         <Tabs defaultValue="eventos" className="w-full">
           <TabsList className="grid w-full grid-cols-4 rounded-2xl bg-muted/50 p-1">
             <TabsTrigger

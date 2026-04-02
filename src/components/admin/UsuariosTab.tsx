@@ -99,7 +99,6 @@ export const UsuariosTab: React.FC<UsuariosTabProps> = ({
             <CriarUsuarioModal onUsuarioCriado={handleUsuarioCriado} />
           </div>
 
-          {/* Filtros */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -111,7 +110,6 @@ export const UsuariosTab: React.FC<UsuariosTabProps> = ({
               />
             </div>
 
-            {/* Filtro de Role */}
             <select
               value={filtroRole}
               onChange={(e) => onFiltroRoleChange(e.target.value)}
@@ -200,7 +198,6 @@ export const UsuariosTab: React.FC<UsuariosTabProps> = ({
             )}
           </div>
 
-          {/* Paginação */}
           {totalPages > 1 && (
             <div className="flex justify-between items-center mt-6 pt-4 border-t">
               <div className="text-sm text-muted-foreground">

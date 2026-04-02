@@ -835,7 +835,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
             )}
           </div>
 
-          {/* Paginação */}
           {totalPages > 1 && (
             <div className="flex justify-between items-center mt-6 pt-4 border-t">
               <div className="text-sm text-muted-foreground">
@@ -866,7 +865,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         </CardContent>
       </Card>
 
-      {/* Modal de Edição */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -885,7 +883,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
             </div>
           ) : (
             <div className="space-y-6">
-              {/* ✅ SEÇÃO DE BANNER */}
               <Card>
                 <CardHeader>
                   <CardTitle>Banner do Evento</CardTitle>
@@ -895,7 +892,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex flex-col md:flex-row gap-6 items-start">
-                    {/* Preview do Banner Atual */}
                     <div className="flex-1">
                       <Label className="text-sm font-medium mb-3 block">
                         Banner Atual
@@ -908,7 +904,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                               alt={`Banner atual do evento ${formData.name}`}
                               className="w-full h-full object-cover"
                             />
-                            {/* Badge indicando banner atual */}
                             <div className="absolute top-2 left-2">
                               <Badge variant="secondary" className="text-xs">
                                 Atual
@@ -928,7 +923,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                       </div>
                     </div>
 
-                    {/* Upload de Novo Banner */}
                     <div className="flex-1 space-y-4">
                       <Label className="text-sm font-medium">
                         Novo Banner (Opcional)
@@ -1013,7 +1007,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                         </div>
                       )}
 
-                      {/* Opção para remover banner existente */}
                       {formData.bannerUrl && (
                         <Button
                           type="button"
@@ -1031,7 +1024,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                 </CardContent>
               </Card>
 
-              {/* Informações do Evento */}
               <Card>
                 <CardHeader>
                   <CardTitle>Informações do Evento</CardTitle>
@@ -1174,7 +1166,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                 </CardContent>
               </Card>
 
-              {/* Categorias do Evento */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between sticky top-0 z-10 bg-card py-2">
@@ -1370,7 +1361,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                 </CardContent>
               </Card>
 
-              {/* ✅ NOVA SEÇÃO: Juízes e Locutores */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -1402,7 +1392,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                       </div>
                     ) : (
                       <>
-                        {/* Juízes */}
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <Label className="text-base font-semibold flex items-center gap-2">
@@ -1484,7 +1473,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                           </div>
                         </div>
 
-                        {/* Locutores */}
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <Label className="text-base font-semibold flex items-center gap-2">

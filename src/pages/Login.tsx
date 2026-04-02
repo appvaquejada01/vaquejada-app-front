@@ -56,12 +56,10 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-primary/5 flex items-center justify-center p-4">
-      {/* Background Elements */}
       <div className="absolute top-10 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-secondary/10 rounded-full blur-3xl"></div>
 
       <div className="w-full max-w-lg relative z-10">
-        {/* Header */}
         <div className="text-center mb-8">
           <Link
             to="/"
@@ -100,7 +98,6 @@ const Login = () => {
 
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email */}
               <div className="space-y-3">
                 <Label htmlFor="email" className="text-sm font-medium">
                   E-mail
@@ -116,7 +113,6 @@ const Login = () => {
                 />
               </div>
 
-              {/* Senha */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-sm font-medium">
@@ -153,7 +149,6 @@ const Login = () => {
                 </div>
               </div>
 
-              {/* Botão de Submit */}
               <Button
                 className="w-full rounded-xl py-3 text-base font-medium shadow-lg hover:shadow-xl transition-all bg-primary hover:bg-primary/90 group"
                 size="lg"
@@ -174,7 +169,6 @@ const Login = () => {
               </Button>
             </form>
 
-            {/* Divisor */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
@@ -186,7 +180,6 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Link para Cadastro */}
             <div className="text-center">
               <Button
                 variant="outline"
@@ -202,7 +195,6 @@ const Login = () => {
               </Button>
             </div>
 
-            {/* Benefícios Rápidos */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
               <div className="space-y-2">
                 <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center mx-auto">

@@ -70,7 +70,6 @@ const ComprarSenhas = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
-              {/* Seleção de Categoria */}
               {!selectedCategory ? (
                 <div>
                   <h3 className="text-xl font-semibold mb-4">Selecione a categoria</h3>
@@ -163,7 +162,6 @@ const ComprarSenhas = () => {
               )}
             </div>
 
-            {/* Resumo do Pedido */}
             <div>
               <Card className="sticky top-24">
                 <CardHeader>

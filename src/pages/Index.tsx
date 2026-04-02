@@ -102,7 +102,6 @@ const Index = () => {
               </span>
             </p>
 
-            {/* Search Bar */}
             <div className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -163,7 +162,6 @@ const Index = () => {
                   key={i}
                   className="overflow-hidden border-2 animate-pulse"
                 >
-                  {/* Skeleton em portrait */}
                   <div className="h-48 bg-muted"></div>
                   <CardHeader>
                     <div className="h-6 bg-muted rounded w-3/4"></div>
@@ -183,7 +181,6 @@ const Index = () => {
                   key={event.id}
                   className="overflow-hidden border-2 hover:border-primary/30 hover:shadow-2xl transition-all duration-300 group cursor-pointer bg-card/50 backdrop-blur-sm"
                 >
-                  {/* ✅ BANNER EM PORTRAIT (EM PÉ) */}
                   <div className="relative h-48 overflow-hidden bg-muted">
                     {event.bannerUrl ? (
                       <>
@@ -201,7 +198,6 @@ const Index = () => {
                             if (fallback) fallback.classList.remove("hidden");
                           }}
                         />
-                        {/* Fallback que aparece se a imagem der erro */}
                         <div className="hidden w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
                           <div className="text-center">
                             <ImageOff className="h-12 w-12 text-primary/40 mx-auto mb-2" />
@@ -223,7 +219,6 @@ const Index = () => {
                       </div>
                     )}
 
-                    {/* Overlay no hover */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
                       <div className="p-3 text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                         <p className="text-sm font-medium mb-1">Ver detalhes</p>
@@ -233,7 +228,6 @@ const Index = () => {
                       </div>
                     </div>
 
-                    {/* Badge de Status */}
                     <div className="absolute top-3 right-3">
                       <div
                         className={`px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
@@ -248,7 +242,6 @@ const Index = () => {
                       </div>
                     </div>
 
-                    {/* Efeito de brilho no hover */}
                     <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-all duration-500"></div>
                   </div>
 
@@ -267,7 +260,6 @@ const Index = () => {
                   </CardHeader>
 
                   <CardContent className="pb-4 space-y-4">
-                    {/* Data do Evento */}
                     <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border group-hover:bg-muted/40 transition-colors duration-300">
                       <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-full group-hover:bg-primary/15 transition-colors duration-300">
                         <Calendar className="h-5 w-5 text-primary" />
@@ -288,7 +280,6 @@ const Index = () => {
                       </div>
                     </div>
 
-                    {/* Countdown Timer para Inscrições */}
                     {event.purchaseClosedAt && (
                       <div className="p-3 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20 group-hover:from-primary/10 group-hover:to-primary/15 transition-all duration-300">
                         <CountdownTimer

@@ -87,9 +87,6 @@ export const DetalhesInscricaoModal = ({
 
     setLoading(true);
     try {
-      // Aqui você implementaria a chamada à API para atualizar o status
-      // await updateSubscriptionStatus(inscricao.id, newStatus);
-
       toast({
         title: "Status atualizado!",
         description: `Inscrição ${getSubscriptionStatusMap(
