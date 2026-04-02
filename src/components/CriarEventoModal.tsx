@@ -28,6 +28,7 @@ import {
   Trash2,
   Tag,
   Search,
+  LocateFixed,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -177,6 +178,8 @@ export const CriarEventoModal = ({
   const addressInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<any>(null);
   const [googleLoaded, setGoogleLoaded] = useState(false);
+  const [mapQuery, setMapQuery] = useState("");
+  const [geolocating, setGeolocating] = useState(false);
 
   // Create Staff
   const [showCreateJudge, setShowCreateJudge] = useState(false);
@@ -297,6 +300,58 @@ export const CriarEventoModal = ({
       autocompleteRef.current = null;
     }
   }, [open]);
+
+  useEffect(() => {
+    const query = [formData.address, formData.city, formData.state]
+      .filter(Boolean)
+      .join(", ");
+    const timer = setTimeout(() => setMapQuery(query), 600);
+    return () => clearTimeout(timer);
+  }, [formData.address, formData.city, formData.state]);
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) return;
+    setGeolocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const google = (window as any).google;
+        if (google?.maps) {
+          const geocoder = new google.maps.Geocoder();
+          geocoder.geocode(
+            { location: { lat: latitude, lng: longitude } },
+            (results: any[], status: string) => {
+              setGeolocating(false);
+              if (status === "OK" && results[0]) {
+                const components = results[0].address_components;
+                let city = "";
+                let state = "";
+                let route = "";
+                let streetNumber = "";
+                for (const comp of components) {
+                  if (comp.types.includes("administrative_area_level_2"))
+                    city = comp.long_name;
+                  if (comp.types.includes("administrative_area_level_1"))
+                    state = comp.short_name;
+                  if (comp.types.includes("route")) route = comp.long_name;
+                  if (comp.types.includes("street_number"))
+                    streetNumber = comp.long_name;
+                }
+                const address = streetNumber
+                  ? `${route}, ${streetNumber}`
+                  : route || results[0].formatted_address;
+                setFormData((prev) => ({ ...prev, address, city, state }));
+              }
+            }
+          );
+        } else {
+          setGeolocating(false);
+          setMapQuery(`${latitude},${longitude}`);
+        }
+      },
+      () => setGeolocating(false)
+    );
+  };
 
   const loadAvailableStaff = async () => {
     try {
@@ -1139,28 +1194,41 @@ export const CriarEventoModal = ({
                 <Label htmlFor="address" className="text-sm font-medium">
                   Endereço (Opcional)
                 </Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="address"
-                    ref={addressInputRef}
-                    placeholder={
-                      googleLoaded
-                        ? "Busque o endereço pelo Google..."
-                        : "Rua, número, bairro"
-                    }
-                    value={formData.address}
-                    onChange={(e) =>
-                      handleInputChange("address", e.target.value)
-                    }
-                    maxLength={500}
-                    className="rounded-xl border-2 focus:border-primary/50 pl-10"
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="address"
+                      ref={addressInputRef}
+                      placeholder={
+                        googleLoaded
+                          ? "Busque o endereço pelo Google..."
+                          : "Rua, número, bairro"
+                      }
+                      value={formData.address}
+                      onChange={(e) =>
+                        handleInputChange("address", e.target.value)
+                      }
+                      maxLength={500}
+                      className="rounded-xl border-2 focus:border-primary/50 pl-10"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="Usar minha localização"
+                    disabled={geolocating}
+                    onClick={handleUseMyLocation}
+                    className="rounded-xl border-2 shrink-0"
+                  >
+                    <LocateFixed className={`h-4 w-4 ${geolocating ? "animate-pulse text-primary" : ""}`} />
+                  </Button>
                 </div>
                 {googleLoaded && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
-                    Busca via Google Places ativada - cidade e estado serão
+                    Busca via Google Places ativada — cidade e estado serão
                     preenchidos automaticamente
                   </p>
                 )}
@@ -1203,34 +1271,36 @@ export const CriarEventoModal = ({
                 </div>
               </div>
 
-              {(formData.address || formData.city) && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Localização no Mapa
-                  </Label>
-                  <div className="rounded-xl overflow-hidden border-2 border-muted">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Localização no Mapa
+                </Label>
+                <div className="rounded-xl overflow-hidden border-2 border-muted">
+                  {mapQuery ? (
                     <iframe
+                      key={mapQuery}
                       title="Localização do evento"
                       width="100%"
                       height="250"
                       style={{ border: 0 }}
                       loading="lazy"
                       referrerPolicy="no-referrer-when-downgrade"
-                      src={`https://maps.google.com/maps?q=${encodeURIComponent(
-                        [formData.address, formData.city, formData.state]
-                          .filter(Boolean)
-                          .join(", ")
-                      )}&z=15&ie=UTF8&iwloc=&output=embed`}
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=15&ie=UTF8&iwloc=&output=embed`}
                     />
-                  </div>
+                  ) : (
+                    <div className="h-[250px] flex flex-col items-center justify-center bg-muted/30 text-muted-foreground gap-2">
+                      <MapPin className="h-8 w-8 opacity-30" />
+                      <p className="text-sm">
+                        Digite um endereço ou cidade para ver o mapa
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {mapQuery && (
                   <div className="flex justify-end">
                     <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                        [formData.address, formData.city, formData.state]
-                          .filter(Boolean)
-                          .join(", ")
-                      )}`}
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-primary hover:underline flex items-center gap-1"
@@ -1239,8 +1309,8 @@ export const CriarEventoModal = ({
                       Abrir no Google Maps
                     </a>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             <div className="space-y-4">

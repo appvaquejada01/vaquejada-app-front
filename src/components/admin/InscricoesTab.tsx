@@ -176,7 +176,7 @@ export const InscricoesTab: React.FC<InscricoesTabProps> = ({
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {inscricao.event?.name || "Evento não encontrado"} •{" "}
-                      {getCategoryNameMap(inscricao.category?.name)}
+                      {getCategoryNameMap(inscricao.category?.name, inscricao.category?.description)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Inscrito em {formatDate(inscricao.subscribedAt)}

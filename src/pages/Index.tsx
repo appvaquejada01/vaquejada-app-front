@@ -177,130 +177,126 @@ const Index = () => {
           ) : filteredEvents.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredEvents.map((event) => (
-                <Card
-                  key={event.id}
-                  className="overflow-hidden border-2 hover:border-primary/30 hover:shadow-2xl transition-all duration-300 group cursor-pointer bg-card/50 backdrop-blur-sm"
-                >
-                  <div className="relative h-48 overflow-hidden bg-muted">
-                    {event.bannerUrl ? (
-                      <>
-                        <img
-                          src={event.bannerUrl}
-                          alt={`Banner do evento ${event.name}`}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                          loading="lazy"
-                          onError={(e) => {
-                            // Fallback se a imagem não carregar
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = "none";
-                            const fallback =
-                              target.nextElementSibling as HTMLElement;
-                            if (fallback) fallback.classList.remove("hidden");
-                          }}
-                        />
-                        <div className="hidden w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                <Link key={event.id} to={`/evento/${event.id}`}>
+                  <Card
+                    className="overflow-hidden border-2 hover:border-primary/30 hover:shadow-2xl transition-all duration-300 group cursor-pointer bg-card/50 backdrop-blur-sm"
+                  >
+                    <div className="relative h-48 overflow-hidden bg-muted">
+                      {event.bannerUrl ? (
+                        <>
+                          <img
+                            src={event.bannerUrl}
+                            alt={`Banner do evento ${event.name}`}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            loading="lazy"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = "none";
+                              const fallback =
+                                target.nextElementSibling as HTMLElement;
+                              if (fallback) fallback.classList.remove("hidden");
+                            }}
+                          />
+                          <div className="hidden w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                            <div className="text-center">
+                              <ImageOff className="h-12 w-12 text-primary/40 mx-auto mb-2" />
+                              <p className="text-xs text-primary/60 font-medium">
+                                Banner não carregado
+                              </p>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center">
                           <div className="text-center">
-                            <ImageOff className="h-12 w-12 text-primary/40 mx-auto mb-2" />
-                            <p className="text-xs text-primary/60 font-medium">
-                              Banner não carregado
+                            <ImageOff className="h-12 w-12 text-primary/30 mx-auto mb-2" />
+                            <p className="text-xs text-primary/50 font-medium">
+                              Sem banner
                             </p>
                           </div>
                         </div>
-                      </>
-                    ) : (
-                      // Placeholder quando não há banner
-                      <div className="w-full h-full bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center">
-                        <div className="text-center">
-                          <ImageOff className="h-12 w-12 text-primary/30 mx-auto mb-2" />
-                          <p className="text-xs text-primary/50 font-medium">
-                            Sem banner
+                      )}
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
+                        <div className="p-3 text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                          <p className="text-sm font-medium mb-1">Ver detalhes</p>
+                          <p className="text-xs opacity-90">
+                            Clique para mais informações
                           </p>
                         </div>
                       </div>
-                    )}
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
-                      <div className="p-3 text-white transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                        <p className="text-sm font-medium mb-1">Ver detalhes</p>
-                        <p className="text-xs opacity-90">
-                          Clique para mais informações
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="absolute top-3 right-3">
-                      <div
-                        className={`px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
-                          event.purchaseClosedAt
-                            ? "bg-green-500/90 text-green-50 shadow-lg"
-                            : "bg-red-500/90 text-red-50 shadow-lg"
-                        }`}
-                      >
-                        {event.purchaseClosedAt
-                          ? "Inscrições Abertas"
-                          : "Inscrições Encerradas"}
-                      </div>
-                    </div>
-
-                    <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-all duration-500"></div>
-                  </div>
-
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-xl line-clamp-2 group-hover:text-primary transition-colors duration-300">
-                      {event.name}
-                    </CardTitle>
-                    <CardDescription className="flex items-center gap-2 text-sm">
-                      <MapPin className="h-4 w-4 flex-shrink-0" />
-                      <span className="line-clamp-1">
-                        {event.city && event.state
-                          ? `${event.city}, ${event.state}`
-                          : "Localização não informada"}
-                      </span>
-                    </CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="pb-4 space-y-4">
-                    <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border group-hover:bg-muted/40 transition-colors duration-300">
-                      <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-full group-hover:bg-primary/15 transition-colors duration-300">
-                        <Calendar className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          Período do Evento
-                        </p>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 text-xs text-muted-foreground">
-                          <span className="font-semibold text-foreground/80">
-                            {formatDate(event.startAt)}
-                          </span>
-                          <span>até</span>
-                          <span className="font-semibold text-foreground/80">
-                            {formatDate(event.endAt)}
-                          </span>
+                      <div className="absolute top-3 right-3">
+                        <div
+                          className={`px-2 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
+                            event.purchaseClosedAt
+                              ? "bg-green-500/90 text-green-50 shadow-lg"
+                              : "bg-red-500/90 text-red-50 shadow-lg"
+                          }`}
+                        >
+                          {event.purchaseClosedAt
+                            ? "Inscrições Abertas"
+                            : "Inscrições Encerradas"}
                         </div>
                       </div>
+
+                      <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-all duration-500"></div>
                     </div>
 
-                    {event.purchaseClosedAt && (
-                      <div className="p-3 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20 group-hover:from-primary/10 group-hover:to-primary/15 transition-all duration-300">
-                        <CountdownTimer
-                          purchaseClosedAt={event.purchaseClosedAt}
-                        />
-                      </div>
-                    )}
-                  </CardContent>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-xl line-clamp-2 group-hover:text-primary transition-colors duration-300">
+                        {event.name}
+                      </CardTitle>
+                      <CardDescription className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 flex-shrink-0" />
+                        <span className="line-clamp-1">
+                          {event.city && event.state
+                            ? `${event.city}, ${event.state}`
+                            : "Localização não informada"}
+                        </span>
+                      </CardDescription>
+                    </CardHeader>
 
-                  <CardFooter>
-                    <Button
-                      className="w-full rounded-xl py-3 font-medium group/btn bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all duration-300"
-                      asChild
-                    >
-                      <Link to={`/evento/${event.id}`}>
+                    <CardContent className="pb-4 space-y-4">
+                      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border group-hover:bg-muted/40 transition-colors duration-300">
+                        <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-full group-hover:bg-primary/15 transition-colors duration-300">
+                          <Calendar className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground">
+                            Período do Evento
+                          </p>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground/80">
+                              {formatDate(event.startAt)}
+                            </span>
+                            <span>até</span>
+                            <span className="font-semibold text-foreground/80">
+                              {formatDate(event.endAt)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {event.purchaseClosedAt && (
+                        <div className="p-3 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20 group-hover:from-primary/10 group-hover:to-primary/15 transition-all duration-300">
+                          <CountdownTimer
+                            purchaseClosedAt={event.purchaseClosedAt}
+                          />
+                        </div>
+                      )}
+                    </CardContent>
+
+                    <CardFooter>
+                      <Button
+                        className="w-full rounded-xl py-3 font-medium group/btn bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
                         <span>Ver detalhes do evento</span>
                         <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform duration-300" />
-                      </Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                </Link>
               ))}
             </div>
           ) : (

@@ -36,7 +36,7 @@ import {
   formatPhone,
   formatPrice,
 } from "@/utils/format-data.util";
-import { SubscriptionStatusEnum } from "@/types/enums/api-enums";
+import { PasswordStatusEnum, SubscriptionStatusEnum } from "@/types/enums/api-enums";
 
 interface DetalhesInscricaoModalProps {
   open: boolean;
@@ -278,27 +278,80 @@ export const DetalhesInscricaoModal = ({
           <Separator />
 
           {/* Informações de Pagamento */}
-          <div className="space-y-4">
-            <h4 className="font-semibold text-lg flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-primary" />
-              Informações de Pagamento
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl border border-primary/20">
-                <p className="text-sm text-muted-foreground mb-2">Valor pago</p>
-                <p className="text-3xl font-bold text-primary">
-                  {formatPrice(Number(inscricao.passwordPrice) || 0)}
-                </p>
-              </div>
+          {(() => {
+            const totalPago = inscricao.passwords?.reduce(
+              (sum, p) => sum + Number(p.price),
+              0
+            ) ?? 0;
+            const senhaPaga = inscricao.passwords?.find((p) => p.soldAt);
+            const dataPagamento = senhaPaga?.soldAt
+              ? formatDate(senhaPaga.soldAt)
+              : null;
+            const statusSenhas = inscricao.passwords?.every(
+              (p) => p.status === PasswordStatusEnum.RESERVED || p.status === PasswordStatusEnum.USED
+            )
+              ? "Confirmado"
+              : inscricao.passwords?.some(
+                  (p) => p.status === PasswordStatusEnum.RESERVED || p.status === PasswordStatusEnum.USED
+                )
+              ? "Parcialmente confirmado"
+              : "Pendente";
 
-              <div className="p-4 bg-muted/30 rounded-xl">
-                <p className="text-sm text-muted-foreground mb-2">
-                  Método de pagamento
-                </p>
-                <p className="font-medium text-foreground">Cartão de Crédito</p>
+            return (
+              <div className="space-y-4">
+                <h4 className="font-semibold text-lg flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-primary" />
+                  Informações de Pagamento
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl border border-primary/20">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Valor total ({inscricao.passwords?.length ?? 0} senha
+                      {(inscricao.passwords?.length ?? 0) !== 1 ? "s" : ""})
+                    </p>
+                    <p className="text-3xl font-bold text-primary">
+                      {formatPrice(totalPago)}
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-muted/30 rounded-xl">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Status do pagamento
+                    </p>
+                    <p className="font-medium text-foreground">{statusSenhas}</p>
+                  </div>
+
+                  {dataPagamento && (
+                    <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Data do pagamento
+                        </p>
+                        <p className="font-medium text-foreground">
+                          {dataPagamento}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {inscricao.passwords && inscricao.passwords.length > 0 && (
+                    <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Valor por senha
+                        </p>
+                        <p className="font-medium text-foreground">
+                          {formatPrice(Number(inscricao.passwords[0].price))}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Botões de Ação */}
           <div className="flex justify-between items-center pt-4 border-t">

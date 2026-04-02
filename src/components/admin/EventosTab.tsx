@@ -592,6 +592,33 @@ export const EventosTab: React.FC<EventosTabProps> = ({
   };
 
   const handleSaveEvent = async () => {
+    for (let i = 0; i < categoriasDoEvento.length; i++) {
+      const cat = categoriasDoEvento[i];
+      if (!cat.categoryId) {
+        toast({ title: "Erro", description: `Categoria ${i + 1}: selecione uma categoria.`, variant: "destructive" });
+        return;
+      }
+      if (!Number(cat.maxRunners) || Number(cat.maxRunners) <= 0) {
+        toast({ title: "Erro", description: `Categoria ${i + 1}: informe o máximo de participantes (> 0).`, variant: "destructive" });
+        return;
+      }
+      if (!Number(cat.passwordLimit) || Number(cat.passwordLimit) <= 0) {
+        toast({ title: "Erro", description: `Categoria ${i + 1}: informe o limite de senhas (> 0).`, variant: "destructive" });
+        return;
+      }
+    }
+
+    const categoryIds = categoriasDoEvento.map((c) => c.categoryId).filter(Boolean);
+    const hasDuplicate = categoryIds.length !== new Set(categoryIds).size;
+    if (hasDuplicate) {
+      toast({
+        title: "Erro",
+        description: "Há categorias duplicadas. Cada categoria só pode ser adicionada uma vez.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       let bannerUrl = formData.bannerUrl;
 
@@ -617,10 +644,10 @@ export const EventosTab: React.FC<EventosTabProps> = ({
 
       await updateEvent(editingEvent!.id, updatedData);
 
-      for (const categoria of categoriasDoEvento) {
+      for (const categoria of categoriasDoEvento.filter((c) => c.id)) {
         const catStartAt = categoria.startAt && !categoria.startAt.includes("T") ? `${categoria.startAt}T12:00:00.000Z` : categoria.startAt;
         const catEndAt = categoria.endAt && !categoria.endAt.includes("T") ? `${categoria.endAt}T12:00:00.000Z` : categoria.endAt;
-        const eventCategoryData = {
+        await updateEventCategory(categoria.id!, {
           eventId: editingEvent!.id,
           categoryId: categoria.categoryId,
           price: Number(categoria.price),
@@ -630,13 +657,23 @@ export const EventosTab: React.FC<EventosTabProps> = ({
           passwordLimit: Number(categoria.passwordLimit),
           cattleQuantity: Number(categoria.cattleQuantity) || 0,
           prize: Number(categoria.prize) || 0,
-        };
+        });
+      }
 
-        if (categoria.id) {
-          await updateEventCategory(categoria.id, eventCategoryData);
-        } else {
-          await createEventCategory(eventCategoryData);
-        }
+      for (const categoria of categoriasDoEvento.filter((c) => !c.id)) {
+        const catStartAt = categoria.startAt && !categoria.startAt.includes("T") ? `${categoria.startAt}T12:00:00.000Z` : categoria.startAt;
+        const catEndAt = categoria.endAt && !categoria.endAt.includes("T") ? `${categoria.endAt}T12:00:00.000Z` : categoria.endAt;
+        await createEventCategory({
+          eventId: editingEvent!.id,
+          categoryId: categoria.categoryId,
+          price: Number(categoria.price),
+          startAt: catStartAt,
+          endAt: catEndAt,
+          maxRunners: Number(categoria.maxRunners),
+          passwordLimit: Number(categoria.passwordLimit),
+          cattleQuantity: Number(categoria.cattleQuantity) || 0,
+          prize: Number(categoria.prize) || 0,
+        });
       }
 
       toast({
@@ -663,15 +700,17 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         bannerUrl: "",
       });
 
-      // Limpar o input de arquivo
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-    } catch (err) {
+
+      onEventCreated?.();
+    } catch (err: any) {
       console.error("Erro ao atualizar evento:", err);
+      const msg = err?.response?.data?.message || "Não foi possível atualizar o evento";
       toast({
         title: "Erro",
-        description: "Não foi possível atualizar o evento",
+        description: Array.isArray(msg) ? msg.join(", ") : msg,
         variant: "destructive",
       });
     }
@@ -1217,11 +1256,20 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                             className="w-full rounded-lg border-2 px-3 py-2 bg-background"
                           >
                             <option value="">Selecione uma categoria</option>
-                            {categoriasDoEventoDisponiveis.map((cat) => (
-                              <option key={cat.id} value={cat.id}>
-                                {cat.name}
-                              </option>
-                            ))}
+                            {categoriasDoEventoDisponiveis
+                              .filter(
+                                (cat) =>
+                                  cat.id === categoria.categoryId ||
+                                  !categoriasDoEvento.some(
+                                    (c, i) =>
+                                      i !== index && c.categoryId === cat.id
+                                  )
+                              )
+                              .map((cat) => (
+                                <option key={cat.id} value={cat.id}>
+                                  {cat.name}
+                                </option>
+                              ))}
                           </select>
                         </div>
 

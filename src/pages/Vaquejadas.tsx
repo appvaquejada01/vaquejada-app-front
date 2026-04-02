@@ -216,8 +216,8 @@ const Vaquejadas = () => {
           ) : filteredEvents.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredEvents.map((event) => (
+                <Link key={event.id} to={`/evento/${event.id}`}>
                 <Card
-                  key={event.id}
                   className="overflow-hidden border-2 hover:border-primary/30 hover:shadow-2xl transition-all duration-300 group cursor-pointer bg-card/50 backdrop-blur-sm"
                 >
                   {/* Banner */}
@@ -334,15 +334,13 @@ const Vaquejadas = () => {
                   <CardFooter>
                     <Button
                       className="w-full rounded-xl py-3 font-medium group/btn bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all duration-300"
-                      asChild
                     >
-                      <Link to={`/evento/${event.id}`}>
-                        <span>Ver detalhes do evento</span>
-                        <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform duration-300" />
-                      </Link>
+                      <span>Ver detalhes do evento</span>
+                      <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform duration-300" />
                     </Button>
                   </CardFooter>
                 </Card>
+                </Link>
               ))}
             </div>
           ) : (
