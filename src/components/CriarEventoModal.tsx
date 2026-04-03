@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -180,6 +180,9 @@ export const CriarEventoModal = ({
   const [googleLoaded, setGoogleLoaded] = useState(false);
   const [mapQuery, setMapQuery] = useState("");
   const [geolocating, setGeolocating] = useState(false);
+  const mapDivRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
 
   // Create Staff
   const [showCreateJudge, setShowCreateJudge] = useState(false);
@@ -301,6 +304,9 @@ export const CriarEventoModal = ({
     }
   }, [open]);
 
+  const HERE_API_KEY = import.meta.env.VITE_HERE_MAPS_API_KEY as string;
+
+  // Debounce mapQuery para forward geocoding
   useEffect(() => {
     const query = [formData.address, formData.city, formData.state]
       .filter(Boolean)
@@ -309,45 +315,162 @@ export const CriarEventoModal = ({
     return () => clearTimeout(timer);
   }, [formData.address, formData.city, formData.state]);
 
+  // Reverse geocoding via HERE REST API
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(
+        `https://revgeocode.search.hereapi.com/v1/revgeocode?at=${lat},${lng}&lang=pt-BR&apiKey=${HERE_API_KEY}`
+      );
+      const data = await res.json();
+      const item = data.items?.[0];
+      if (!item) return;
+      const addr = item.address || {};
+      const city = addr.city || addr.county || "";
+      const state = addr.stateCode || addr.state || "";
+      const street = addr.street || "";
+      const houseNumber = addr.houseNumber || "";
+      const address = street ? (houseNumber ? `${street}, ${houseNumber}` : street) : item.title || "";
+      setFormData((prev) => ({ ...prev, address, city, state }));
+    } catch {
+      // silencioso
+    }
+  }, [HERE_API_KEY]);
+
+  // Carrega scripts HERE Maps via CDN (uma única vez)
+  const hereLoadedRef = useRef(false);
+  const loadHereMaps = useCallback((): Promise<void> => {
+    if (hereLoadedRef.current) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const scripts = [
+        "https://js.api.here.com/v3/3.1/mapsjs-core.js",
+        "https://js.api.here.com/v3/3.1/mapsjs-service.js",
+        "https://js.api.here.com/v3/3.1/mapsjs-mapevents.js",
+        "https://js.api.here.com/v3/3.1/mapsjs-ui.js",
+      ];
+      const css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = "https://js.api.here.com/v3/3.1/mapsjs-ui.css";
+      document.head.appendChild(css);
+
+      let loaded = 0;
+      const loadNext = (index: number) => {
+        if (index >= scripts.length) {
+          hereLoadedRef.current = true;
+          resolve();
+          return;
+        }
+        const script = document.createElement("script");
+        script.src = scripts[index];
+        script.onload = () => loadNext(index + 1);
+        script.onerror = reject;
+        document.head.appendChild(script);
+      };
+      loadNext(0);
+    });
+  }, []);
+
+  // Inicializa mapa HERE quando modal abre
+  useEffect(() => {
+    if (!open || !mapDivRef.current) return;
+    if (mapInstanceRef.current) return;
+
+    loadHereMaps().then(() => {
+      const H = (window as any).H;
+      if (!H || !mapDivRef.current) return;
+
+      const platform = new H.service.Platform({ apikey: HERE_API_KEY });
+      const defaultLayers = platform.createDefaultLayers();
+      const map = new H.Map(mapDivRef.current, defaultLayers.vector.normal.map, {
+        zoom: 4,
+        center: { lat: -12.0, lng: -49.0 },
+      });
+
+      new H.mapevents.Behavior(new H.mapevents.MapEvents(map));
+      H.ui.UI.createDefault(map, defaultLayers, "pt-BR");
+
+      const marker = new H.map.Marker({ lat: -12.0, lng: -49.0 }, {
+        volatility: true,
+      });
+      marker.draggable = true;
+      map.addObject(marker);
+      marker.setVisibility(false);
+      markerRef.current = marker;
+
+      // Arrastar marcador
+      map.addEventListener("dragstart", (ev: any) => {
+        if (ev.target instanceof H.map.Marker) map.getViewPort().element.style.cursor = "grabbing";
+      }, false);
+      map.addEventListener("dragend", (ev: any) => {
+        if (ev.target instanceof H.map.Marker) {
+          map.getViewPort().element.style.cursor = "";
+          const pos = ev.target.getGeometry();
+          reverseGeocode(pos.lat, pos.lng);
+        }
+      }, false);
+      map.addEventListener("drag", (ev: any) => {
+        if (ev.target instanceof H.map.Marker) {
+          ev.target.setGeometry(map.screenToGeo(ev.currentPointer.viewportX, ev.currentPointer.viewportY));
+        }
+      }, false);
+
+      // Clique no mapa → move marcador
+      map.addEventListener("tap", (ev: any) => {
+        const coord = map.screenToGeo(ev.currentPointer.viewportX, ev.currentPointer.viewportY);
+        marker.setGeometry(coord);
+        marker.setVisibility(true);
+        reverseGeocode(coord.lat, coord.lng);
+      });
+
+      mapInstanceRef.current = map;
+    });
+  }, [open, HERE_API_KEY, loadHereMaps, reverseGeocode]);
+
+  // Destruir mapa ao fechar modal
+  useEffect(() => {
+    if (!open && mapInstanceRef.current) {
+      mapInstanceRef.current.dispose();
+      mapInstanceRef.current = null;
+      markerRef.current = null;
+    }
+  }, [open]);
+
+  // Forward geocoding: mover mapa quando usuário digita endereço
+  useEffect(() => {
+    if (!mapQuery || !mapInstanceRef.current) return;
+    fetch(
+      `https://geocode.search.hereapi.com/v1/geocode?q=${encodeURIComponent(mapQuery)}&lang=pt-BR&apiKey=${HERE_API_KEY}`
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        const item = data.items?.[0];
+        if (!item) return;
+        const { lat, lng } = item.position;
+        mapInstanceRef.current.setCenter({ lat, lng });
+        mapInstanceRef.current.setZoom(14);
+        if (markerRef.current) {
+          markerRef.current.setGeometry({ lat, lng });
+          markerRef.current.setVisibility(true);
+        }
+      })
+      .catch(() => {});
+  }, [mapQuery, HERE_API_KEY]);
+
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) return;
     setGeolocating(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
-        const google = (window as any).google;
-        if (google?.maps) {
-          const geocoder = new google.maps.Geocoder();
-          geocoder.geocode(
-            { location: { lat: latitude, lng: longitude } },
-            (results: any[], status: string) => {
-              setGeolocating(false);
-              if (status === "OK" && results[0]) {
-                const components = results[0].address_components;
-                let city = "";
-                let state = "";
-                let route = "";
-                let streetNumber = "";
-                for (const comp of components) {
-                  if (comp.types.includes("administrative_area_level_2"))
-                    city = comp.long_name;
-                  if (comp.types.includes("administrative_area_level_1"))
-                    state = comp.short_name;
-                  if (comp.types.includes("route")) route = comp.long_name;
-                  if (comp.types.includes("street_number"))
-                    streetNumber = comp.long_name;
-                }
-                const address = streetNumber
-                  ? `${route}, ${streetNumber}`
-                  : route || results[0].formatted_address;
-                setFormData((prev) => ({ ...prev, address, city, state }));
-              }
-            }
-          );
-        } else {
-          setGeolocating(false);
-          setMapQuery(`${latitude},${longitude}`);
+        await reverseGeocode(latitude, longitude);
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setCenter({ lat: latitude, lng: longitude });
+          mapInstanceRef.current.setZoom(15);
+          if (markerRef.current) {
+            markerRef.current.setGeometry({ lat: latitude, lng: longitude });
+            markerRef.current.setVisibility(true);
+          }
         }
+        setGeolocating(false);
       },
       () => setGeolocating(false)
     );
@@ -1275,41 +1398,15 @@ export const CriarEventoModal = ({
                 <Label className="text-sm font-medium flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
                   Localização no Mapa
+                  <span className="text-xs font-normal text-muted-foreground">
+                    — clique para marcar ou arraste o pin
+                  </span>
                 </Label>
-                <div className="rounded-xl overflow-hidden border-2 border-muted">
-                  {mapQuery ? (
-                    <iframe
-                      key={mapQuery}
-                      title="Localização do evento"
-                      width="100%"
-                      height="250"
-                      style={{ border: 0 }}
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&z=15&ie=UTF8&iwloc=&output=embed`}
-                    />
-                  ) : (
-                    <div className="h-[250px] flex flex-col items-center justify-center bg-muted/30 text-muted-foreground gap-2">
-                      <MapPin className="h-8 w-8 opacity-30" />
-                      <p className="text-sm">
-                        Digite um endereço ou cidade para ver o mapa
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {mapQuery && (
-                  <div className="flex justify-end">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline flex items-center gap-1"
-                    >
-                      <MapPin className="h-3 w-3" />
-                      Abrir no Google Maps
-                    </a>
-                  </div>
-                )}
+                <div
+                  ref={mapDivRef}
+                  className="rounded-xl overflow-hidden border-2 border-muted"
+                  style={{ height: 280 }}
+                />
               </div>
             </div>
 
