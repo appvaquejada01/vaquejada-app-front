@@ -59,7 +59,7 @@ export const submitJudgeVote = async (data: JudgeVoteRequest) => {
 export const getJudgeVotesByEvent = async (
   eventId: string,
   judgeId: string
-): Promise<JudgeVoteResponse[]> => {
+): Promise<SpeakerVoteSummaryResponse> => {
   const response = await api.get(`/staff/judge/votes/${judgeId}/${eventId}`);
   return response.data;
 };

@@ -181,6 +181,8 @@ export const CriarEventoModal = ({
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const hereLoadedRef = useRef(false);
+  const platformRef = useRef<any>(null);
+  const searchServiceRef = useRef<any>(null);
 
   const initMap = useCallback((el: HTMLDivElement | null) => {
     if (!el || mapInstanceRef.current) return;
@@ -188,6 +190,8 @@ export const CriarEventoModal = ({
       const H = (window as any).H;
       if (!H) { setTimeout(tryInit, 100); return; }
       const platform = new H.service.Platform({ apikey: import.meta.env.VITE_HERE_MAPS_API_KEY });
+      platformRef.current = platform;
+      searchServiceRef.current = platform.getSearchService();
       const defaultLayers = platform.createDefaultLayers();
       const map = new H.Map(el, defaultLayers.vector.normal.map, {
         zoom: 4,
@@ -291,49 +295,60 @@ export const CriarEventoModal = ({
     }
   }, [open]);
 
-  // Reverse geocoding HERE
-  const reverseGeocodeHere = useCallback(async (lat: number, lng: number) => {
-    const apiKey = import.meta.env.VITE_HERE_MAPS_API_KEY;
-    try {
-      const res = await fetch(
-        `https://revgeocode.search.hereapi.com/v1/revgeocode?at=${lat},${lng}&lang=pt-BR&apiKey=${apiKey}`
-      );
-      const data = await res.json();
-      const item = data.items?.[0];
-      if (!item) return;
-      const addr = item.address || {};
-      const city = addr.city || addr.county || "";
-      const state = addr.stateCode || "";
-      const street = addr.street || "";
-      const houseNumber = addr.houseNumber || "";
-      const address = street ? (houseNumber ? `${street}, ${houseNumber}` : street) : item.title || "";
-      setFormData((prev) => ({ ...prev, address, city, state }));
-    } catch { /* silencioso */ }
+  const getSearchService = useCallback((): Promise<any> => {
+    return new Promise((resolve) => {
+      const tryGet = () => {
+        if (searchServiceRef.current) { resolve(searchServiceRef.current); return; }
+        const H = (window as any).H;
+        if (H && !platformRef.current) {
+          platformRef.current = new H.service.Platform({ apikey: import.meta.env.VITE_HERE_MAPS_API_KEY });
+          searchServiceRef.current = platformRef.current.getSearchService();
+          resolve(searchServiceRef.current);
+          return;
+        }
+        setTimeout(tryGet, 100);
+      };
+      tryGet();
+    });
   }, []);
 
-  // HERE Autosuggest ao digitar no campo endereço
+  // Reverse geocoding via SDK
+  const reverseGeocodeHere = useCallback(async (lat: number, lng: number) => {
+    try {
+      const svc = await getSearchService();
+      svc.reverseGeocode({ at: `${lat},${lng}`, lang: "pt-BR" }, (result: any) => {
+        const item = result.items?.[0];
+        if (!item) return;
+        const addr = item.address || {};
+        const city = addr.city || addr.county || "";
+        const state = addr.stateCode || "";
+        const street = addr.street || "";
+        const houseNumber = addr.houseNumber || "";
+        const address = street ? (houseNumber ? `${street}, ${houseNumber}` : street) : item.title || "";
+        setFormData((prev) => ({ ...prev, address, city, state }));
+      }, () => {});
+    } catch { /* silencioso */ }
+  }, [getSearchService]);
+
+  // Autosuggest via SDK
   const fetchSuggestions = useCallback(async (query: string) => {
     if (!query || query.length < 3) { setSuggestions([]); return; }
-    const apiKey = import.meta.env.VITE_HERE_MAPS_API_KEY;
     try {
-      const res = await fetch(
-        `https://autosuggest.search.hereapi.com/v1/autosuggest?q=${encodeURIComponent(query)}&in=countryCode:BRA&lang=pt-BR&limit=6&apiKey=${apiKey}`
+      const svc = await getSearchService();
+      svc.autosuggest(
+        { q: query, in: "countryCode:BRA", at: "-12.0,-49.0", lang: "pt-BR", limit: 6 },
+        (result: any) => { setSuggestions(result.items?.filter((i: any) => i.address) ?? []); },
+        () => { setSuggestions([]); }
       );
-      const data = await res.json();
-      setSuggestions(data.items?.filter((i: any) => i.address) ?? []);
     } catch { setSuggestions([]); }
-  }, []);
+  }, [getSearchService]);
 
-  // Mover mapa quando mapQuery muda (forward geocoding)
+  // Forward geocoding via SDK — mover mapa quando usuário digita
   useEffect(() => {
     if (!mapQuery || !mapInstanceRef.current) return;
-    const apiKey = import.meta.env.VITE_HERE_MAPS_API_KEY;
-    fetch(
-      `https://geocode.search.hereapi.com/v1/geocode?q=${encodeURIComponent(mapQuery)}&lang=pt-BR&apiKey=${apiKey}`
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        const item = data.items?.[0];
+    getSearchService().then((svc) => {
+      svc.geocode({ q: mapQuery, lang: "pt-BR" }, (result: any) => {
+        const item = result.items?.[0];
         if (!item) return;
         const { lat, lng } = item.position;
         mapInstanceRef.current.setCenter({ lat, lng });
@@ -342,9 +357,9 @@ export const CriarEventoModal = ({
           markerRef.current.setGeometry({ lat, lng });
           markerRef.current.setVisibility(true);
         }
-      })
-      .catch(() => {});
-  }, [mapQuery]);
+      }, () => {});
+    });
+  }, [mapQuery, getSearchService]);
 
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) return;

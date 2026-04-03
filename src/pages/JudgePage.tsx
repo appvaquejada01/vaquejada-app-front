@@ -36,8 +36,13 @@ import {
   updateJudgeVote,
   getJudgeVotesByEvent,
 } from "@/lib/services/staff.service";
-import { JudgeVoteResponse } from "@/types/dtos/staff.dto";
-import { JudgeEvent, RunnerWithPasswords } from "@/types/api";
+import {
+  SpeakerVoteSummaryResponse,
+  RunnerVoteSummaryResponse,
+  PasswordVoteSummaryResponse,
+  JudgeVoteDetailResponse,
+} from "@/types/dtos/staff.dto";
+import { JudgeEvent } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";
 import { getEventStatusMap } from "@/types/enums/enum-maps";
 import { Header } from "@/components/ui/header";
@@ -47,49 +52,15 @@ const JudgePage = () => {
   const { user, logout } = useAuth();
   const [events, setEvents] = useState<JudgeEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<JudgeEvent | null>(null);
+  const [voteSummary, setVoteSummary] = useState<SpeakerVoteSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [submittingVote, setSubmittingVote] = useState<string | null>(null);
-  const [existingVotes, setExistingVotes] = useState<JudgeVoteResponse[]>([]);
   const [expandedRunners, setExpandedRunners] = useState<Set<string>>(
     new Set()
   );
 
   const isJudge = user?.role === UserRoleEnum.JUDGE;
-
-  const getPasswordStatusLabel = (status: string) => {
-    switch (status) {
-      case "reserved":
-        return "Reservada";
-      case "used":
-        return "Utilizada";
-      case "available":
-        return "Disponível";
-      case "expired":
-        return "Expirada";
-      case "cancelled":
-        return "Cancelada";
-      default:
-        return "Desconhecido";
-    }
-  };
-
-  const getPasswordStatusColors = (status: string) => {
-    switch (status) {
-      case "reserved":
-        return "bg-blue-100 text-blue-800";
-      case "used":
-        return "bg-gray-100 text-gray-800";
-      case "available":
-        return "bg-green-100 text-green-800";
-      case "expired":
-        return "bg-orange-100 text-orange-800";
-      case "cancelled":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
 
   const getEventStatusColors = (status: string) => {
     switch (status) {
@@ -101,6 +72,21 @@ const JudgePage = () => {
         return "bg-red-100 text-red-800";
       case "completed":
         return "bg-gray-100 text-gray-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getVoteStatusColors = (status: string) => {
+    switch (status) {
+      case "Válida":
+        return "bg-green-100 text-green-800";
+      case "Nula":
+        return "bg-yellow-100 text-yellow-800";
+      case "TV":
+        return "bg-blue-100 text-blue-800";
+      case "Não correu":
+        return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -124,31 +110,31 @@ const JudgePage = () => {
   }, [isJudge, user?.id]);
 
   useEffect(() => {
-    async function fetchExistingVotes() {
+    async function fetchVoteSummary() {
       if (!selectedEvent || !user?.id) return;
 
       try {
-        const votes = await getJudgeVotesByEvent(selectedEvent.id, user.id);
-        setExistingVotes(votes);
+        const summary = await getJudgeVotesByEvent(selectedEvent.id, user.id);
+        setVoteSummary(summary);
       } catch (err) {
         console.error("Erro ao carregar votos existentes:", err);
-        setExistingVotes([]);
+        setVoteSummary(null);
       }
     }
-    fetchExistingVotes();
+    fetchVoteSummary();
   }, [selectedEvent, user?.id]);
 
   const handleEventSelect = (event: JudgeEvent) => {
     setSelectedEvent(event);
+    setVoteSummary(null);
     setSearchTerm("");
     setExpandedRunners(new Set());
   };
 
-  const handleVote = async (passwordId: string, vote: JudgeVoteEnum, cattleNumber?: number) => {
+  const handleVote = async (passwordId: string, vote: JudgeVoteEnum) => {
     if (!selectedEvent || !user?.id) return;
 
-    const voteKey = cattleNumber ? `${passwordId}-${cattleNumber}` : passwordId;
-    setSubmittingVote(voteKey);
+    setSubmittingVote(passwordId);
 
     try {
       await submitJudgeVote({
@@ -156,25 +142,38 @@ const JudgePage = () => {
         eventId: selectedEvent.id,
         passwordId,
         vote,
-        cattleNumber,
       });
 
-      setExistingVotes((prev) => [
-        ...prev.filter((v) => !(v.passwordId === passwordId && v.cattleNumber === cattleNumber)),
-        {
-          id: `temp-${voteKey}`,
-          judgeId: user.id,
-          eventId: selectedEvent.id,
-          passwordId,
-          vote,
-          cattleNumber,
-          createdAt: new Date().toISOString(),
-        },
-      ]);
+      // Optimistically update voteSummary
+      setVoteSummary((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          runners: prev.runners.map((runner) => ({
+            ...runner,
+            passwords: runner.passwords.map((pw) => {
+              if (pw.passwordId !== passwordId) return pw;
+              const newVote: JudgeVoteDetailResponse = {
+                scoreId: "",
+                judgeId: user.id,
+                judgeName: user.name ?? "",
+                vote,
+                points: vote === JudgeVoteEnum.VALID ? 10 : 0,
+                votedAt: new Date(),
+              };
+              return {
+                ...pw,
+                votes: [newVote],
+                passwordStatus: getVoteLabel(vote),
+              };
+            }),
+          })),
+        };
+      });
 
       toast({
         title: "Voto registrado com sucesso!",
-        description: cattleNumber ? `Voto do boi ${cattleNumber} computado.` : "Seu voto foi computado.",
+        description: "Seu voto foi computado.",
         variant: "default",
       });
     } catch (err) {
@@ -192,28 +191,38 @@ const JudgePage = () => {
   const handleUpdateVote = async (
     scoreId: string,
     passwordId: string,
-    newVote: JudgeVoteEnum,
-    cattleNumber?: number
+    newVote: JudgeVoteEnum
   ) => {
     if (!selectedEvent || !user?.id) return;
 
-    const voteKey = cattleNumber ? `${passwordId}-${cattleNumber}` : passwordId;
-    setSubmittingVote(voteKey);
+    setSubmittingVote(passwordId);
 
     try {
-      await updateJudgeVote(scoreId, {
-        vote: newVote,
-      });
+      await updateJudgeVote(scoreId, { vote: newVote });
 
-      setExistingVotes((prev) =>
-        prev.map((vote) =>
-          vote.id === scoreId ? { ...vote, vote: newVote } : vote
-        )
-      );
+      setVoteSummary((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          runners: prev.runners.map((runner) => ({
+            ...runner,
+            passwords: runner.passwords.map((pw) => {
+              if (pw.passwordId !== passwordId) return pw;
+              return {
+                ...pw,
+                votes: pw.votes.map((v) =>
+                  v.scoreId === scoreId ? { ...v, vote: newVote } : v
+                ),
+                passwordStatus: getVoteLabel(newVote),
+              };
+            }),
+          })),
+        };
+      });
 
       toast({
         title: "Voto atualizado com sucesso!",
-        description: cattleNumber ? `Voto do boi ${cattleNumber} alterado.` : "Seu voto foi alterado.",
+        description: "Seu voto foi alterado.",
         variant: "default",
       });
     } catch (err) {
@@ -225,6 +234,21 @@ const JudgePage = () => {
       });
     } finally {
       setSubmittingVote(null);
+    }
+  };
+
+  const getVoteLabel = (vote: string): string => {
+    switch (vote) {
+      case JudgeVoteEnum.VALID:
+        return "Válida";
+      case JudgeVoteEnum.NULL:
+        return "Nula";
+      case JudgeVoteEnum.TV:
+        return "TV";
+      case JudgeVoteEnum.DID_NOT_RUN:
+        return "Não correu";
+      default:
+        return "Sem votos";
     }
   };
 
@@ -247,75 +271,25 @@ const JudgePage = () => {
     return { city: location, state: "" };
   };
 
-  const getRunnersWithPasswords = (
-    event: JudgeEvent
-  ): RunnerWithPasswords[] => {
-    const runnersMap = new Map<string, RunnerWithPasswords>();
-
-    event.runners.forEach((runner) => {
-      runner.subscriptions.forEach((subscription) => {
-        subscription.passwords.forEach((password) => {
-          if (!runnersMap.has(runner.id)) {
-            runnersMap.set(runner.id, {
-              id: runner.id,
-              name: runner.name,
-              passwords: [],
-              expanded: expandedRunners.has(runner.id),
-            });
-          }
-
-          const runnerData = runnersMap.get(runner.id)!;
-          runnerData.passwords.push({
-            ...password,
-            runnerName: runner.name,
-            subscriptionId: subscription.id,
-          });
-        });
-      });
-    });
-
-    return Array.from(runnersMap.values())
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((runner) => ({
-        ...runner,
-        passwords: runner.passwords.sort((a, b) => a.number - b.number),
-      }));
+  const getExistingVote = (passwordId: string): JudgeVoteDetailResponse | null => {
+    if (!voteSummary) return null;
+    for (const runner of voteSummary.runners) {
+      const pw = runner.passwords.find((p) => p.passwordId === passwordId);
+      if (pw) return pw.votes[0] ?? null;
+    }
+    return null;
   };
 
-  const getExistingVote = (passwordId: string, cattleNumber?: number): JudgeVoteResponse | null => {
-    const vote = existingVotes.find((v) =>
-      v.passwordId === passwordId &&
-      (cattleNumber === undefined || v.cattleNumber === cattleNumber)
-    );
-    return vote || null;
-  };
-
-  const getExistingVotesForPassword = (passwordId: string): JudgeVoteResponse[] => {
-    return existingVotes.filter((v) => v.passwordId === passwordId);
-  };
-
-  const canChangeVote = (existingVote: JudgeVoteResponse | null): boolean => {
+  const canChangeVote = (existingVote: JudgeVoteDetailResponse | null): boolean => {
     return existingVote?.vote === JudgeVoteEnum.TV;
   };
 
-  const getCattlePerPassword = (): number => {
-    return selectedEvent?.cattlePerPassword || 1;
-  };
-
   const getVotingStats = () => {
-    if (!selectedEvent) return { total: 0, voted: 0, totalCattle: 0, votedCattle: 0 };
-
-    const runners = getRunnersWithPasswords(selectedEvent);
-    const allPasswords = runners.flatMap((runner) => runner.passwords);
-    const cattlePerPassword = getCattlePerPassword();
-    const totalCattle = allPasswords.length * cattlePerPassword;
-    const votedCattle = existingVotes.length;
-
+    if (!voteSummary) return { total: 0, voted: 0 };
+    const allPasswords = voteSummary.runners.flatMap((r) => r.passwords);
     return {
       total: allPasswords.length,
-      voted: allPasswords.filter((p) => getExistingVotesForPassword(p.id).length >= cattlePerPassword).length,
-      totalCattle,
-      votedCattle
+      voted: allPasswords.filter((p) => p.votes.length > 0).length,
     };
   };
 
@@ -328,22 +302,19 @@ const JudgePage = () => {
     );
   });
 
-  const getFilteredRunners = (): RunnerWithPasswords[] => {
-    if (!selectedEvent) return [];
+  const getFilteredRunners = (): RunnerVoteSummaryResponse[] => {
+    if (!voteSummary) return [];
 
-    const allRunners = getRunnersWithPasswords(selectedEvent);
-
-    if (!searchTerm) return allRunners;
+    if (!searchTerm) return voteSummary.runners;
 
     const searchLower = searchTerm.toLowerCase();
-    return allRunners
+    return voteSummary.runners
       .map((runner) => ({
         ...runner,
         passwords: runner.passwords.filter(
-          (password) =>
-            password.number.toString().includes(searchTerm) ||
-            password.runnerName.toLowerCase().includes(searchLower) ||
-            password.number.toString().includes(searchTerm)
+          (pw) =>
+            pw.passwordNumber.toString().includes(searchTerm) ||
+            runner.runnerName.toLowerCase().includes(searchLower)
         ),
       }))
       .filter((runner) => runner.passwords.length > 0);
@@ -351,7 +322,7 @@ const JudgePage = () => {
 
   const filteredRunners = getFilteredRunners();
 
-  const getVoteInfo = (vote: JudgeVoteEnum) => {
+  const getVoteInfo = (vote: string) => {
     switch (vote) {
       case JudgeVoteEnum.VALID:
         return {
@@ -404,13 +375,10 @@ const JudgePage = () => {
   };
 
   const toggleAllRunners = (expand: boolean) => {
-    if (!selectedEvent) return;
+    if (!voteSummary) return;
 
     if (expand) {
-      const allRunnerIds = getRunnersWithPasswords(selectedEvent).map(
-        (r) => r.id
-      );
-      setExpandedRunners(new Set(allRunnerIds));
+      setExpandedRunners(new Set(voteSummary.runners.map((r) => r.userId)));
     } else {
       setExpandedRunners(new Set());
     }
@@ -498,9 +466,14 @@ const JudgePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredEvents.map((event) => {
                   const locationInfo = getLocationInfo(event.location);
-                  const runners = getRunnersWithPasswords(event);
-                  const totalPasswords = runners.reduce(
-                    (total, runner) => total + runner.passwords.length,
+                  const runnerCount = event.runners.length;
+                  const totalPasswords = event.runners.reduce(
+                    (sum, r) =>
+                      sum +
+                      r.subscriptions.reduce(
+                        (s, sub) => s + sub.passwords.length,
+                        0
+                      ),
                     0
                   );
 
@@ -547,7 +520,7 @@ const JudgePage = () => {
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
                           <Users className="h-4 w-4" />
-                          <span>{runners.length} corredores</span>
+                          <span>{runnerCount} corredores</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
                           <Key className="h-4 w-4" />
@@ -612,27 +585,7 @@ const JudgePage = () => {
             </div>
 
             {/* Estatísticas */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              {selectedEvent.cattlePerPassword && (
-                <Card className="border-2 border-primary/30 bg-primary/5">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                          Bois por Senha
-                        </p>
-                        <p className="text-2xl font-bold text-primary">
-                          {selectedEvent.cattlePerPassword}
-                        </p>
-                      </div>
-                      <Award className="h-8 w-8 text-primary" />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Avalie {selectedEvent.cattlePerPassword} boi(s) por passada
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
@@ -710,19 +663,29 @@ const JudgePage = () => {
               </div>
             </div>
 
-            {filteredRunners.length > 0 ? (
+            {!voteSummary ? (
               <div className="space-y-4">
-                {filteredRunners.map((runner) => {
-                  const isExpanded = expandedRunners.has(runner.id);
-                  const votedPasswords = runner.passwords.filter(
-                    (password) => getExistingVote(password.id) !== null
-                  );
+                {[...Array(3)].map((_, i) => (
+                  <Card key={i} className="overflow-hidden animate-pulse">
+                    <CardHeader>
+                      <div className="h-6 bg-muted rounded w-1/3"></div>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredRunners.length > 0 ? (
+              <div className="space-y-4">
+                {filteredRunners.map((runner: RunnerVoteSummaryResponse) => {
+                  const isExpanded = expandedRunners.has(runner.userId);
+                  const votedCount = runner.passwords.filter(
+                    (pw: PasswordVoteSummaryResponse) => pw.votes.length > 0
+                  ).length;
 
                   return (
-                    <Card key={runner.id} className="overflow-hidden">
+                    <Card key={runner.userId} className="overflow-hidden">
                       <CardHeader
                         className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors"
-                        onClick={() => toggleRunnerExpansion(runner.id)}
+                        onClick={() => toggleRunnerExpansion(runner.userId)}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -731,11 +694,11 @@ const JudgePage = () => {
                             </div>
                             <div>
                               <CardTitle className="text-lg">
-                                {runner.name}
+                                {runner.runnerName}
                               </CardTitle>
                               <CardDescription>
-                                {runner.passwords.length} senha(s) -
-                                {votedPasswords.length} avaliada(s)
+                                {runner.passwords.length} senha(s) -{" "}
+                                {votedCount} avaliada(s)
                               </CardDescription>
                             </div>
                           </div>
@@ -743,21 +706,20 @@ const JudgePage = () => {
                             <div className="text-right">
                               <div
                                 className={`text-sm font-medium ${
-                                  votedPasswords.length ===
-                                  runner.passwords.length
+                                  votedCount === runner.passwords.length
                                     ? "text-green-600"
                                     : "text-orange-600"
                                 }`}
                               >
-                                {votedPasswords.length}/
-                                {runner.passwords.length}
+                                {votedCount}/{runner.passwords.length}
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                {Math.round(
-                                  (votedPasswords.length /
-                                    runner.passwords.length) *
-                                    100
-                                )}
+                                {runner.passwords.length > 0
+                                  ? Math.round(
+                                      (votedCount / runner.passwords.length) *
+                                        100
+                                    )
+                                  : 0}
                                 % concluído
                               </div>
                             </div>
@@ -779,145 +741,200 @@ const JudgePage = () => {
                       {isExpanded && (
                         <CardContent className="pt-0">
                           <div className="space-y-3 mt-4">
-                            {runner.passwords.map((password) => {
-                              const cattleCount = getCattlePerPassword();
-                              const passwordVotes = getExistingVotesForPassword(password.id);
-                              const allCattleVoted = passwordVotes.length >= cattleCount;
+                            {runner.passwords.map((password: PasswordVoteSummaryResponse) => {
+                              const existingVote = getExistingVote(password.passwordId);
+                              const voteInfo = existingVote
+                                ? getVoteInfo(existingVote.vote)
+                                : null;
+                              const VoteIcon = voteInfo?.icon;
+                              const canChange = canChangeVote(existingVote);
 
                               return (
-                                <div key={password.id} className="border rounded-xl p-4 bg-card hover:shadow-md transition-shadow">
-                                  {/* Layout horizontal: Info à esquerda, Votação à direita */}
+                                <div
+                                  key={password.passwordId}
+                                  className="border rounded-xl p-4 bg-card hover:shadow-md transition-shadow"
+                                >
                                   <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                                    {/* Coluna esquerda: Número da senha e info do corredor */}
+                                    {/* Coluna esquerda: número da senha */}
                                     <div className="flex-shrink-0 lg:w-48">
-                                      {/* Número da senha em destaque */}
                                       <div className="text-center lg:text-left mb-2">
-                                        <span className="text-3xl font-bold text-primary">#{password.number}</span>
+                                        <span className="text-3xl font-bold text-primary">
+                                          #{password.passwordNumber}
+                                        </span>
                                       </div>
-                                      {/* Info do corredor */}
                                       <div className="text-center lg:text-left">
-                                        <p className="text-sm font-medium text-foreground">{password.runnerName}</p>
+                                        <p className="text-sm font-medium text-foreground">
+                                          {runner.runnerName}
+                                        </p>
                                         <div className="flex items-center justify-center lg:justify-start gap-2 mt-1">
-                                          <span className={`px-2 py-0.5 rounded-full text-xs ${getPasswordStatusColors(password.status)}`}>
-                                            {getPasswordStatusLabel(password.status)}
+                                          <span
+                                            className={`px-2 py-0.5 rounded-full text-xs ${getVoteStatusColors(
+                                              password.passwordStatus
+                                            )}`}
+                                          >
+                                            {password.passwordStatus}
                                           </span>
-                                          {cattleCount > 1 && (
-                                            <span className={`text-xs font-medium ${allCattleVoted ? 'text-green-600' : 'text-orange-600'}`}>
-                                              {passwordVotes.length}/{cattleCount} bois
-                                            </span>
-                                          )}
                                         </div>
                                       </div>
                                     </div>
 
-                                    {/* Coluna direita: Área de votação */}
+                                    {/* Coluna direita: votação */}
                                     <div className="flex-1">
-                                      {cattleCount > 1 ? (
-                                        // Múltiplos bois por senha
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                          {Array.from({ length: cattleCount }, (_, i) => i + 1).map((cattleNum) => {
-                                            const existingVote = getExistingVote(password.id, cattleNum);
-                                            const voteInfo = existingVote ? getVoteInfo(existingVote.vote) : null;
-                                            const VoteIcon = voteInfo?.icon;
-                                            const canChange = canChangeVote(existingVote);
-                                            const voteKey = `${password.id}-${cattleNum}`;
-
-                                            return (
-                                              <div key={cattleNum} className="p-2 bg-muted/30 rounded-lg border">
-                                                <div className="flex items-center justify-between mb-2">
-                                                  <span className="text-sm font-semibold">Boi {cattleNum}</span>
-                                                  {existingVote && VoteIcon && (
-                                                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${voteInfo.bgColor}`}>
-                                                      <VoteIcon className={`h-3 w-3 ${voteInfo.color}`} />
-                                                      <span className={`text-xs font-medium ${voteInfo.color}`}>{voteInfo.label}</span>
-                                                    </div>
-                                                  )}
-                                                </div>
-                                                {!existingVote ? (
-                                                  <div className="grid grid-cols-4 gap-1">
-                                                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs px-1 h-8" onClick={() => handleVote(password.id, JudgeVoteEnum.VALID, cattleNum)} disabled={submittingVote === voteKey}>
-                                                      <ThumbsUp className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200 hover:bg-yellow-50 text-xs px-1 h-8" onClick={() => handleVote(password.id, JudgeVoteEnum.NULL, cattleNum)} disabled={submittingVote === voteKey}>
-                                                      <Ban className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50 text-xs px-1 h-8" onClick={() => handleVote(password.id, JudgeVoteEnum.TV, cattleNum)} disabled={submittingVote === voteKey}>
-                                                      <Tv className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50 text-xs px-1 h-8" onClick={() => handleVote(password.id, JudgeVoteEnum.DID_NOT_RUN, cattleNum)} disabled={submittingVote === voteKey}>
-                                                      <SkipForward className="h-3 w-3" />
-                                                    </Button>
-                                                  </div>
-                                                ) : canChange ? (
-                                                  <div className="grid grid-cols-4 gap-1">
-                                                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs px-1 h-8" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.VALID, cattleNum)} disabled={submittingVote === voteKey}>
-                                                      <ThumbsUp className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200 hover:bg-yellow-50 text-xs px-1 h-8" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.NULL, cattleNum)} disabled={submittingVote === voteKey}>
-                                                      <Ban className="h-3 w-3" />
-                                                    </Button>
-                                                    <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50 text-xs px-1 h-8" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.DID_NOT_RUN, cattleNum)} disabled={submittingVote === voteKey}>
-                                                      <SkipForward className="h-3 w-3" />
-                                                    </Button>
-                                                    <span className="text-xs text-blue-600 flex items-center justify-center">Editável</span>
-                                                  </div>
-                                                ) : (
-                                                  <p className="text-xs text-green-600 text-center">Votado</p>
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      ) : (
-                                        // Apenas 1 boi por senha
-                                        (() => {
-                                          const existingVote = getExistingVote(password.id, 1);
-                                          const voteInfo = existingVote ? getVoteInfo(existingVote.vote) : null;
-                                          const VoteIcon = voteInfo?.icon;
-                                          const canChange = canChangeVote(existingVote);
-                                          const voteKey = `${password.id}-1`;
-
-                                          return (
-                                            <div className="flex flex-col sm:flex-row items-center gap-3">
-                                              {existingVote && VoteIcon && (
-                                                <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${voteInfo.bgColor}`}>
-                                                  <VoteIcon className={`h-4 w-4 ${voteInfo.color}`} />
-                                                  <span className={`text-sm font-medium ${voteInfo.color}`}>{voteInfo.label}</span>
-                                                  {canChange && <span className="text-xs text-blue-600 ml-1">(Editável)</span>}
-                                                </div>
-                                              )}
-                                              {!existingVote ? (
-                                                <div className="flex flex-wrap gap-2">
-                                                  <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleVote(password.id, JudgeVoteEnum.VALID, 1)} disabled={submittingVote === voteKey}>
-                                                    <ThumbsUp className="h-4 w-4 mr-1" />Valeu
-                                                  </Button>
-                                                  <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200 hover:bg-yellow-50" onClick={() => handleVote(password.id, JudgeVoteEnum.NULL, 1)} disabled={submittingVote === voteKey}>
-                                                    <Ban className="h-4 w-4 mr-1" />Zero
-                                                  </Button>
-                                                  <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => handleVote(password.id, JudgeVoteEnum.TV, 1)} disabled={submittingVote === voteKey}>
-                                                    <Tv className="h-4 w-4 mr-1" />TV
-                                                  </Button>
-                                                  <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleVote(password.id, JudgeVoteEnum.DID_NOT_RUN, 1)} disabled={submittingVote === voteKey}>
-                                                    <SkipForward className="h-4 w-4 mr-1" />Retorno
-                                                  </Button>
-                                                </div>
-                                              ) : canChange ? (
-                                                <div className="flex flex-wrap gap-2">
-                                                  <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.VALID, 1)} disabled={submittingVote === voteKey}>
-                                                    <ThumbsUp className="h-4 w-4 mr-1" />Valeu
-                                                  </Button>
-                                                  <Button variant="outline" size="sm" className="text-yellow-600 border-yellow-200 hover:bg-yellow-50" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.NULL, 1)} disabled={submittingVote === voteKey}>
-                                                    <Ban className="h-4 w-4 mr-1" />Zero
-                                                  </Button>
-                                                  <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleUpdateVote(existingVote.id, password.id, JudgeVoteEnum.DID_NOT_RUN, 1)} disabled={submittingVote === voteKey}>
-                                                    <SkipForward className="h-4 w-4 mr-1" />Retorno
-                                                  </Button>
-                                                </div>
-                                              ) : null}
-                                            </div>
-                                          );
-                                        })()
-                                      )}
+                                      <div className="flex flex-col sm:flex-row items-center gap-3">
+                                        {existingVote && VoteIcon && (
+                                          <div
+                                            className={`flex items-center gap-1 px-3 py-1 rounded-full ${voteInfo.bgColor}`}
+                                          >
+                                            <VoteIcon
+                                              className={`h-4 w-4 ${voteInfo.color}`}
+                                            />
+                                            <span
+                                              className={`text-sm font-medium ${voteInfo.color}`}
+                                            >
+                                              {voteInfo.label}
+                                            </span>
+                                            {canChange && (
+                                              <span className="text-xs text-blue-600 ml-1">
+                                                (Editável)
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+                                        {!existingVote ? (
+                                          <div className="flex flex-wrap gap-2">
+                                            <Button
+                                              size="sm"
+                                              className="bg-green-600 hover:bg-green-700"
+                                              onClick={() =>
+                                                handleVote(
+                                                  password.passwordId,
+                                                  JudgeVoteEnum.VALID
+                                                )
+                                              }
+                                              disabled={
+                                                submittingVote ===
+                                                password.passwordId
+                                              }
+                                            >
+                                              <ThumbsUp className="h-4 w-4 mr-1" />
+                                              Valeu
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="text-yellow-600 border-yellow-200 hover:bg-yellow-50"
+                                              onClick={() =>
+                                                handleVote(
+                                                  password.passwordId,
+                                                  JudgeVoteEnum.NULL
+                                                )
+                                              }
+                                              disabled={
+                                                submittingVote ===
+                                                password.passwordId
+                                              }
+                                            >
+                                              <Ban className="h-4 w-4 mr-1" />
+                                              Zero
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                              onClick={() =>
+                                                handleVote(
+                                                  password.passwordId,
+                                                  JudgeVoteEnum.TV
+                                                )
+                                              }
+                                              disabled={
+                                                submittingVote ===
+                                                password.passwordId
+                                              }
+                                            >
+                                              <Tv className="h-4 w-4 mr-1" />
+                                              TV
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="text-red-600 border-red-200 hover:bg-red-50"
+                                              onClick={() =>
+                                                handleVote(
+                                                  password.passwordId,
+                                                  JudgeVoteEnum.DID_NOT_RUN
+                                                )
+                                              }
+                                              disabled={
+                                                submittingVote ===
+                                                password.passwordId
+                                              }
+                                            >
+                                              <SkipForward className="h-4 w-4 mr-1" />
+                                              Retorno
+                                            </Button>
+                                          </div>
+                                        ) : canChange ? (
+                                          <div className="flex flex-wrap gap-2">
+                                            <Button
+                                              size="sm"
+                                              className="bg-green-600 hover:bg-green-700"
+                                              onClick={() =>
+                                                handleUpdateVote(
+                                                  existingVote.scoreId,
+                                                  password.passwordId,
+                                                  JudgeVoteEnum.VALID
+                                                )
+                                              }
+                                              disabled={
+                                                submittingVote ===
+                                                password.passwordId
+                                              }
+                                            >
+                                              <ThumbsUp className="h-4 w-4 mr-1" />
+                                              Valeu
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="text-yellow-600 border-yellow-200 hover:bg-yellow-50"
+                                              onClick={() =>
+                                                handleUpdateVote(
+                                                  existingVote.scoreId,
+                                                  password.passwordId,
+                                                  JudgeVoteEnum.NULL
+                                                )
+                                              }
+                                              disabled={
+                                                submittingVote ===
+                                                password.passwordId
+                                              }
+                                            >
+                                              <Ban className="h-4 w-4 mr-1" />
+                                              Zero
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="text-red-600 border-red-200 hover:bg-red-50"
+                                              onClick={() =>
+                                                handleUpdateVote(
+                                                  existingVote.scoreId,
+                                                  password.passwordId,
+                                                  JudgeVoteEnum.DID_NOT_RUN
+                                                )
+                                              }
+                                              disabled={
+                                                submittingVote ===
+                                                password.passwordId
+                                              }
+                                            >
+                                              <SkipForward className="h-4 w-4 mr-1" />
+                                              Retorno
+                                            </Button>
+                                          </div>
+                                        ) : null}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
