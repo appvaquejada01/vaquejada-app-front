@@ -174,15 +174,55 @@ export const CriarEventoModal = ({
     []
   );
 
-  // Google Places
-  const addressInputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<any>(null);
-  const [googleLoaded, setGoogleLoaded] = useState(false);
   const [mapQuery, setMapQuery] = useState("");
   const [geolocating, setGeolocating] = useState(false);
-  const mapDivRef = useRef<HTMLDivElement>(null);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const hereLoadedRef = useRef(false);
+
+  const initMap = useCallback((el: HTMLDivElement | null) => {
+    if (!el || mapInstanceRef.current) return;
+    const tryInit = () => {
+      const H = (window as any).H;
+      if (!H) { setTimeout(tryInit, 100); return; }
+      const platform = new H.service.Platform({ apikey: import.meta.env.VITE_HERE_MAPS_API_KEY });
+      const defaultLayers = platform.createDefaultLayers();
+      const map = new H.Map(el, defaultLayers.vector.normal.map, {
+        zoom: 4,
+        center: { lat: -12.0, lng: -49.0 },
+      });
+      new H.mapevents.Behavior(new H.mapevents.MapEvents(map));
+      H.ui.UI.createDefault(map, defaultLayers, "pt-BR");
+
+      const marker = new H.map.Marker({ lat: -12.0, lng: -49.0 }, { volatility: true });
+      marker.draggable = true;
+      marker.setVisibility(false);
+      map.addObject(marker);
+      markerRef.current = marker;
+
+      map.addEventListener("drag", (ev: any) => {
+        if (ev.target instanceof H.map.Marker)
+          ev.target.setGeometry(map.screenToGeo(ev.currentPointer.viewportX, ev.currentPointer.viewportY));
+      }, false);
+      map.addEventListener("dragend", (ev: any) => {
+        if (ev.target instanceof H.map.Marker) {
+          const pos = ev.target.getGeometry();
+          reverseGeocodeHere(pos.lat, pos.lng);
+        }
+      }, false);
+      map.addEventListener("tap", (ev: any) => {
+        const coord = map.screenToGeo(ev.currentPointer.viewportX, ev.currentPointer.viewportY);
+        marker.setGeometry(coord);
+        marker.setVisibility(true);
+        reverseGeocodeHere(coord.lat, coord.lng);
+      });
+
+      mapInstanceRef.current = map;
+    };
+    tryInit();
+  }, []);
 
   // Create Staff
   const [showCreateJudge, setShowCreateJudge] = useState(false);
@@ -213,232 +253,83 @@ export const CriarEventoModal = ({
     }
   }, [open]);
 
-  // Google Places: load script
   useEffect(() => {
-    loadGoogleMapsScript()
-      .then(() => setGoogleLoaded(true))
-      .catch(() => {});
-  }, []);
+    if (hereLoadedRef.current) return;
+    const apiKey = import.meta.env.VITE_HERE_MAPS_API_KEY;
+    if (!apiKey) return;
 
-  // Google Places: initialize autocomplete
-  useEffect(() => {
-    if (!open || !googleLoaded || !addressInputRef.current || autocompleteRef.current) return;
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = "https://js.api.here.com/v3/3.1/mapsjs-ui.css";
+    document.head.appendChild(css);
 
-    const google = (window as any).google;
-    if (!google?.maps?.places) return;
-
-    const autocomplete = new google.maps.places.Autocomplete(
-      addressInputRef.current,
-      {
-        types: ["address"],
-        componentRestrictions: { country: "br" },
-        fields: ["address_components", "formatted_address"],
-      }
-    );
-
-    autocomplete.addListener("place_changed", () => {
-      const place = autocomplete.getPlace();
-      if (!place.address_components) return;
-
-      let route = "";
-      let streetNumber = "";
-      let neighborhood = "";
-      let city = "";
-      let state = "";
-
-      for (const component of place.address_components) {
-        const types: string[] = component.types;
-        if (types.includes("route")) {
-          route = component.long_name;
-        }
-        if (types.includes("street_number")) {
-          streetNumber = component.long_name;
-        }
-        if (
-          types.includes("sublocality_level_1") ||
-          types.includes("sublocality")
-        ) {
-          neighborhood = component.long_name;
-        }
-        if (types.includes("administrative_area_level_2")) {
-          city = component.long_name;
-        }
-        if (types.includes("administrative_area_level_1")) {
-          state = component.short_name;
-        }
-      }
-
-      let address = route;
-      if (streetNumber) address += `, ${streetNumber}`;
-      if (neighborhood) address += ` - ${neighborhood}`;
-
-      if (!address && place.formatted_address) {
-        address = place.formatted_address;
-      }
-
-      setFormData((prev) => ({
-        ...prev,
-        address,
-        city,
-        state,
-      }));
-    });
-
-    autocompleteRef.current = autocomplete;
-  }, [open, googleLoaded]);
-
-  // Fix z-index for Google Places dropdown inside dialog
-  useEffect(() => {
-    const style = document.createElement("style");
-    style.textContent = ".pac-container { z-index: 10000 !important; }";
-    document.head.appendChild(style);
-    return () => {
-      document.head.removeChild(style);
+    const scripts = [
+      "https://js.api.here.com/v3/3.1/mapsjs-core.js",
+      "https://js.api.here.com/v3/3.1/mapsjs-service.js",
+      "https://js.api.here.com/v3/3.1/mapsjs-mapevents.js",
+      "https://js.api.here.com/v3/3.1/mapsjs-ui.js",
+    ];
+    const loadNext = (index: number) => {
+      if (index >= scripts.length) { hereLoadedRef.current = true; return; }
+      const s = document.createElement("script");
+      s.src = scripts[index];
+      s.onload = () => loadNext(index + 1);
+      document.head.appendChild(s);
     };
+    loadNext(0);
   }, []);
 
-  // Reset autocomplete ref when dialog closes
-  useEffect(() => {
-    if (!open) {
-      autocompleteRef.current = null;
-    }
-  }, [open]);
-
-  const HERE_API_KEY = import.meta.env.VITE_HERE_MAPS_API_KEY as string;
-
-  // Debounce mapQuery para forward geocoding
-  useEffect(() => {
-    const query = [formData.address, formData.city, formData.state]
-      .filter(Boolean)
-      .join(", ");
-    const timer = setTimeout(() => setMapQuery(query), 600);
-    return () => clearTimeout(timer);
-  }, [formData.address, formData.city, formData.state]);
-
-  // Reverse geocoding via HERE REST API
-  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
-    try {
-      const res = await fetch(
-        `https://revgeocode.search.hereapi.com/v1/revgeocode?at=${lat},${lng}&lang=pt-BR&apiKey=${HERE_API_KEY}`
-      );
-      const data = await res.json();
-      const item = data.items?.[0];
-      if (!item) return;
-      const addr = item.address || {};
-      const city = addr.city || addr.county || "";
-      const state = addr.stateCode || addr.state || "";
-      const street = addr.street || "";
-      const houseNumber = addr.houseNumber || "";
-      const address = street ? (houseNumber ? `${street}, ${houseNumber}` : street) : item.title || "";
-      setFormData((prev) => ({ ...prev, address, city, state }));
-    } catch {
-      // silencioso
-    }
-  }, [HERE_API_KEY]);
-
-  // Carrega scripts HERE Maps via CDN (uma única vez)
-  const hereLoadedRef = useRef(false);
-  const loadHereMaps = useCallback((): Promise<void> => {
-    if (hereLoadedRef.current) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const scripts = [
-        "https://js.api.here.com/v3/3.1/mapsjs-core.js",
-        "https://js.api.here.com/v3/3.1/mapsjs-service.js",
-        "https://js.api.here.com/v3/3.1/mapsjs-mapevents.js",
-        "https://js.api.here.com/v3/3.1/mapsjs-ui.js",
-      ];
-      const css = document.createElement("link");
-      css.rel = "stylesheet";
-      css.href = "https://js.api.here.com/v3/3.1/mapsjs-ui.css";
-      document.head.appendChild(css);
-
-      let loaded = 0;
-      const loadNext = (index: number) => {
-        if (index >= scripts.length) {
-          hereLoadedRef.current = true;
-          resolve();
-          return;
-        }
-        const script = document.createElement("script");
-        script.src = scripts[index];
-        script.onload = () => loadNext(index + 1);
-        script.onerror = reject;
-        document.head.appendChild(script);
-      };
-      loadNext(0);
-    });
-  }, []);
-
-  // Inicializa mapa HERE quando modal abre
-  useEffect(() => {
-    if (!open || !mapDivRef.current) return;
-    if (mapInstanceRef.current) return;
-
-    loadHereMaps().then(() => {
-      const H = (window as any).H;
-      if (!H || !mapDivRef.current) return;
-
-      const platform = new H.service.Platform({ apikey: HERE_API_KEY });
-      const defaultLayers = platform.createDefaultLayers();
-      const map = new H.Map(mapDivRef.current, defaultLayers.vector.normal.map, {
-        zoom: 4,
-        center: { lat: -12.0, lng: -49.0 },
-      });
-
-      new H.mapevents.Behavior(new H.mapevents.MapEvents(map));
-      H.ui.UI.createDefault(map, defaultLayers, "pt-BR");
-
-      const marker = new H.map.Marker({ lat: -12.0, lng: -49.0 }, {
-        volatility: true,
-      });
-      marker.draggable = true;
-      map.addObject(marker);
-      marker.setVisibility(false);
-      markerRef.current = marker;
-
-      // Arrastar marcador
-      map.addEventListener("dragstart", (ev: any) => {
-        if (ev.target instanceof H.map.Marker) map.getViewPort().element.style.cursor = "grabbing";
-      }, false);
-      map.addEventListener("dragend", (ev: any) => {
-        if (ev.target instanceof H.map.Marker) {
-          map.getViewPort().element.style.cursor = "";
-          const pos = ev.target.getGeometry();
-          reverseGeocode(pos.lat, pos.lng);
-        }
-      }, false);
-      map.addEventListener("drag", (ev: any) => {
-        if (ev.target instanceof H.map.Marker) {
-          ev.target.setGeometry(map.screenToGeo(ev.currentPointer.viewportX, ev.currentPointer.viewportY));
-        }
-      }, false);
-
-      // Clique no mapa → move marcador
-      map.addEventListener("tap", (ev: any) => {
-        const coord = map.screenToGeo(ev.currentPointer.viewportX, ev.currentPointer.viewportY);
-        marker.setGeometry(coord);
-        marker.setVisibility(true);
-        reverseGeocode(coord.lat, coord.lng);
-      });
-
-      mapInstanceRef.current = map;
-    });
-  }, [open, HERE_API_KEY, loadHereMaps, reverseGeocode]);
-
-  // Destruir mapa ao fechar modal
   useEffect(() => {
     if (!open && mapInstanceRef.current) {
       mapInstanceRef.current.dispose();
       mapInstanceRef.current = null;
       markerRef.current = null;
     }
+    if (!open) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
   }, [open]);
 
-  // Forward geocoding: mover mapa quando usuário digita endereço
+  // Reverse geocoding HERE
+  const reverseGeocodeHere = useCallback(async (lat: number, lng: number) => {
+    const apiKey = import.meta.env.VITE_HERE_MAPS_API_KEY;
+    try {
+      const res = await fetch(
+        `https://revgeocode.search.hereapi.com/v1/revgeocode?at=${lat},${lng}&lang=pt-BR&apiKey=${apiKey}`
+      );
+      const data = await res.json();
+      const item = data.items?.[0];
+      if (!item) return;
+      const addr = item.address || {};
+      const city = addr.city || addr.county || "";
+      const state = addr.stateCode || "";
+      const street = addr.street || "";
+      const houseNumber = addr.houseNumber || "";
+      const address = street ? (houseNumber ? `${street}, ${houseNumber}` : street) : item.title || "";
+      setFormData((prev) => ({ ...prev, address, city, state }));
+    } catch { /* silencioso */ }
+  }, []);
+
+  // HERE Autosuggest ao digitar no campo endereço
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (!query || query.length < 3) { setSuggestions([]); return; }
+    const apiKey = import.meta.env.VITE_HERE_MAPS_API_KEY;
+    try {
+      const res = await fetch(
+        `https://autosuggest.search.hereapi.com/v1/autosuggest?q=${encodeURIComponent(query)}&in=countryCode:BRA&lang=pt-BR&limit=6&apiKey=${apiKey}`
+      );
+      const data = await res.json();
+      setSuggestions(data.items?.filter((i: any) => i.address) ?? []);
+    } catch { setSuggestions([]); }
+  }, []);
+
+  // Mover mapa quando mapQuery muda (forward geocoding)
   useEffect(() => {
     if (!mapQuery || !mapInstanceRef.current) return;
+    const apiKey = import.meta.env.VITE_HERE_MAPS_API_KEY;
     fetch(
-      `https://geocode.search.hereapi.com/v1/geocode?q=${encodeURIComponent(mapQuery)}&lang=pt-BR&apiKey=${HERE_API_KEY}`
+      `https://geocode.search.hereapi.com/v1/geocode?q=${encodeURIComponent(mapQuery)}&lang=pt-BR&apiKey=${apiKey}`
     )
       .then((r) => r.json())
       .then((data) => {
@@ -453,7 +344,7 @@ export const CriarEventoModal = ({
         }
       })
       .catch(() => {});
-  }, [mapQuery, HERE_API_KEY]);
+  }, [mapQuery]);
 
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) return;
@@ -461,7 +352,7 @@ export const CriarEventoModal = ({
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        await reverseGeocode(latitude, longitude);
+        await reverseGeocodeHere(latitude, longitude);
         if (mapInstanceRef.current) {
           mapInstanceRef.current.setCenter({ lat: latitude, lng: longitude });
           mapInstanceRef.current.setZoom(15);
@@ -474,6 +365,30 @@ export const CriarEventoModal = ({
       },
       () => setGeolocating(false)
     );
+  };
+
+  const handleSelectSuggestion = (item: any) => {
+    const addr = item.address || {};
+    const city = addr.city || addr.county || "";
+    const state = addr.stateCode || "";
+    const street = addr.street || "";
+    const houseNumber = addr.houseNumber || "";
+    const address = street ? (houseNumber ? `${street}, ${houseNumber}` : street) : item.title || "";
+    setFormData((prev) => ({ ...prev, address, city, state }));
+    setSuggestions([]);
+    setShowSuggestions(false);
+    // mover mapa para a posição selecionada
+    if (item.position && mapInstanceRef.current) {
+      const { lat, lng } = item.position;
+      mapInstanceRef.current.setCenter({ lat, lng });
+      mapInstanceRef.current.setZoom(14);
+      if (markerRef.current) {
+        markerRef.current.setGeometry({ lat, lng });
+        markerRef.current.setVisibility(true);
+      }
+    }
+    // disparar forward geocode após pequena espera para atualizar mapQuery
+    setTimeout(() => setMapQuery([address, city, state].filter(Boolean).join(", ")), 50);
   };
 
   const loadAvailableStaff = async () => {
@@ -1319,22 +1234,41 @@ export const CriarEventoModal = ({
                 </Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
                     <Input
                       id="address"
-                      ref={addressInputRef}
-                      placeholder={
-                        googleLoaded
-                          ? "Busque o endereço pelo Google..."
-                          : "Rua, número, bairro"
-                      }
+                      placeholder="Rua, número, bairro ou cidade..."
                       value={formData.address}
-                      onChange={(e) =>
-                        handleInputChange("address", e.target.value)
-                      }
+                      onChange={(e) => {
+                        handleInputChange("address", e.target.value);
+                        fetchSuggestions(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                       maxLength={500}
                       className="rounded-xl border-2 focus:border-primary/50 pl-10"
+                      autoComplete="off"
                     />
+                    {showSuggestions && suggestions.length > 0 && (
+                      <ul className="absolute left-0 right-0 top-full mt-1 bg-card border-2 border-muted rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
+                        {suggestions.map((item, i) => (
+                          <li
+                            key={i}
+                            className="px-4 py-2 cursor-pointer hover:bg-muted/50 text-sm flex items-start gap-2"
+                            onMouseDown={() => handleSelectSuggestion(item)}
+                          >
+                            <MapPin className="h-3 w-3 mt-1 shrink-0 text-primary" />
+                            <div>
+                              <p className="font-medium leading-tight">{item.title}</p>
+                              {item.address?.label && item.address.label !== item.title && (
+                                <p className="text-xs text-muted-foreground">{item.address.label}</p>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   <Button
                     type="button"
@@ -1348,13 +1282,6 @@ export const CriarEventoModal = ({
                     <LocateFixed className={`h-4 w-4 ${geolocating ? "animate-pulse text-primary" : ""}`} />
                   </Button>
                 </div>
-                {googleLoaded && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    Busca via Google Places ativada — cidade e estado serão
-                    preenchidos automaticamente
-                  </p>
-                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1403,7 +1330,7 @@ export const CriarEventoModal = ({
                   </span>
                 </Label>
                 <div
-                  ref={mapDivRef}
+                  ref={initMap}
                   className="rounded-xl overflow-hidden border-2 border-muted"
                   style={{ height: 280 }}
                 />
