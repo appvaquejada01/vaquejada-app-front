@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { formatDate } from "@/utils/format-data.util";
 import { UserRoleEnum, JudgeVoteEnum } from "@/types/enums/api-enums";
 import {
@@ -418,12 +418,14 @@ const SpeakerPage = () => {
     fetchSpeakerEvents();
   }, [isSpeaker, user?.id]);
 
-  useEffect(() => {
-    async function fetchVotesSummary() {
-      if (!selectedEvent || !user?.id) return;
+  const votesSummaryRef = useRef<string>("");
 
+  useEffect(() => {
+    if (!selectedEvent || !user?.id) return;
+
+    async function fetchVotesSummary() {
       try {
-        const summary = await getEventVotesSummary(selectedEvent.id);
+        const summary = await getEventVotesSummary(selectedEvent!.id);
         const sortedSummary = {
           ...summary,
           runners: summary.runners
@@ -435,13 +437,21 @@ const SpeakerPage = () => {
             }))
             .sort((a, b) => a.runnerName.localeCompare(b.runnerName)),
         };
-        setVotesSummary(sortedSummary);
+
+        const serialized = JSON.stringify(sortedSummary);
+        if (serialized !== votesSummaryRef.current) {
+          votesSummaryRef.current = serialized;
+          setVotesSummary(sortedSummary);
+        }
       } catch (err) {
         console.error("Erro ao carregar resumo de votos:", err);
         setVotesSummary(null);
       }
     }
+
     fetchVotesSummary();
+    const intervalId = setInterval(fetchVotesSummary, 10000);
+    return () => clearInterval(intervalId);
   }, [selectedEvent, user?.id]);
 
   const handleEventSelect = useCallback((event: SpeakerEvent) => {
@@ -449,6 +459,7 @@ const SpeakerPage = () => {
     setSearchTerm("");
     setExpandedRunners(new Set());
     setVotesSummary(null);
+    votesSummaryRef.current = "";
   }, []);
 
   const toggleRunnerExpansion = useCallback((runnerId: string) => {

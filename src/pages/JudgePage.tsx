@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { formatDate } from "@/utils/format-data.util";
 import { UserRoleEnum, JudgeVoteEnum } from "@/types/enums/api-enums";
 import {
@@ -35,6 +35,7 @@ import {
   submitJudgeVote,
   updateJudgeVote,
   getJudgeVotesByEvent,
+  getEventVotesSummary,
 } from "@/lib/services/staff.service";
 import {
   SpeakerVoteSummaryResponse,
@@ -53,6 +54,7 @@ const JudgePage = () => {
   const [events, setEvents] = useState<JudgeEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<JudgeEvent | null>(null);
   const [voteSummary, setVoteSummary] = useState<SpeakerVoteSummaryResponse | null>(null);
+  const [allVotesSummary, setAllVotesSummary] = useState<SpeakerVoteSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [submittingVote, setSubmittingVote] = useState<string | null>(null);
@@ -85,8 +87,8 @@ const JudgePage = () => {
         return "bg-yellow-100 text-yellow-800";
       case "TV":
         return "bg-blue-100 text-blue-800";
-      case "Não correu":
-        return "bg-red-100 text-red-800";
+      case "Aguardando novo boi":
+        return "bg-orange-100 text-orange-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -109,24 +111,59 @@ const JudgePage = () => {
     fetchJudgeEvents();
   }, [isJudge, user?.id]);
 
-  useEffect(() => {
-    async function fetchVoteSummary() {
-      if (!selectedEvent || !user?.id) return;
+  const voteSummaryRef = useRef<string>("");
 
+  useEffect(() => {
+    if (!selectedEvent || !user?.id) return;
+
+    async function fetchVoteSummary() {
       try {
-        const summary = await getJudgeVotesByEvent(selectedEvent.id, user.id);
-        setVoteSummary(summary);
+        const summary = await getJudgeVotesByEvent(selectedEvent!.id, user!.id);
+        const serialized = JSON.stringify(summary);
+        if (serialized !== voteSummaryRef.current) {
+          voteSummaryRef.current = serialized;
+          setVoteSummary(summary);
+        }
       } catch (err) {
         console.error("Erro ao carregar votos existentes:", err);
         setVoteSummary(null);
       }
     }
+
     fetchVoteSummary();
+    const intervalId = setInterval(fetchVoteSummary, 10000);
+    return () => clearInterval(intervalId);
   }, [selectedEvent, user?.id]);
+
+  const allVotesSummaryRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!selectedEvent) return;
+
+    async function fetchAllVotes() {
+      try {
+        const summary = await getEventVotesSummary(selectedEvent!.id);
+        const serialized = JSON.stringify(summary);
+        if (serialized !== allVotesSummaryRef.current) {
+          allVotesSummaryRef.current = serialized;
+          setAllVotesSummary(summary);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar resumo geral de votos:", err);
+      }
+    }
+
+    fetchAllVotes();
+    const intervalId = setInterval(fetchAllVotes, 10000);
+    return () => clearInterval(intervalId);
+  }, [selectedEvent]);
 
   const handleEventSelect = (event: JudgeEvent) => {
     setSelectedEvent(event);
     setVoteSummary(null);
+    setAllVotesSummary(null);
+    voteSummaryRef.current = "";
+    allVotesSummaryRef.current = "";
     setSearchTerm("");
     setExpandedRunners(new Set());
   };
@@ -147,14 +184,14 @@ const JudgePage = () => {
       // Optimistically update voteSummary
       setVoteSummary((prev) => {
         if (!prev) return prev;
-        return {
+        const updated = {
           ...prev,
           runners: prev.runners.map((runner) => ({
             ...runner,
             passwords: runner.passwords.map((pw) => {
               if (pw.passwordId !== passwordId) return pw;
               const newVote: JudgeVoteDetailResponse = {
-                scoreId: "",
+                scoreId: `temp-${Date.now()}`,
                 judgeId: user.id,
                 judgeName: user.name ?? "",
                 vote,
@@ -163,12 +200,14 @@ const JudgePage = () => {
               };
               return {
                 ...pw,
-                votes: [newVote],
+                votes: [...pw.votes, newVote],
                 passwordStatus: getVoteLabel(vote),
               };
             }),
           })),
         };
+        voteSummaryRef.current = JSON.stringify(updated);
+        return updated;
       });
 
       toast({
@@ -202,7 +241,7 @@ const JudgePage = () => {
 
       setVoteSummary((prev) => {
         if (!prev) return prev;
-        return {
+        const updated = {
           ...prev,
           runners: prev.runners.map((runner) => ({
             ...runner,
@@ -218,6 +257,8 @@ const JudgePage = () => {
             }),
           })),
         };
+        voteSummaryRef.current = JSON.stringify(updated);
+        return updated;
       });
 
       toast({
@@ -246,7 +287,7 @@ const JudgePage = () => {
       case JudgeVoteEnum.TV:
         return "TV";
       case JudgeVoteEnum.DID_NOT_RUN:
-        return "Não correu";
+        return "Aguardando novo boi";
       default:
         return "Sem votos";
     }
@@ -271,17 +312,26 @@ const JudgePage = () => {
     return { city: location, state: "" };
   };
 
-  const getExistingVote = (passwordId: string): JudgeVoteDetailResponse | null => {
-    if (!voteSummary) return null;
-    for (const runner of voteSummary.runners) {
-      const pw = runner.passwords.find((p) => p.passwordId === passwordId);
-      if (pw) return pw.votes[0] ?? null;
-    }
-    return null;
+  const getLastVote = (password: PasswordVoteSummaryResponse): JudgeVoteDetailResponse | null => {
+    return password.votes.length > 0 ? password.votes[password.votes.length - 1] : null;
+  };
+
+  const needsNewVote = (password: PasswordVoteSummaryResponse): boolean => {
+    const last = getLastVote(password);
+    return !last || last.vote === JudgeVoteEnum.DID_NOT_RUN;
   };
 
   const canChangeVote = (existingVote: JudgeVoteDetailResponse | null): boolean => {
     return existingVote?.vote === JudgeVoteEnum.TV;
+  };
+
+  const getAllJudgesVotes = (passwordId: string): JudgeVoteDetailResponse[] => {
+    if (!allVotesSummary) return [];
+    for (const runner of allVotesSummary.runners) {
+      const pw = runner.passwords.find((p) => p.passwordId === passwordId);
+      if (pw) return pw.votes;
+    }
+    return [];
   };
 
   const getVotingStats = () => {
@@ -289,7 +339,7 @@ const JudgePage = () => {
     const allPasswords = voteSummary.runners.flatMap((r) => r.passwords);
     return {
       total: allPasswords.length,
-      voted: allPasswords.filter((p) => p.votes.length > 0).length,
+      voted: allPasswords.filter((p) => !needsNewVote(p)).length,
     };
   };
 
@@ -678,7 +728,7 @@ const JudgePage = () => {
                 {filteredRunners.map((runner: RunnerVoteSummaryResponse) => {
                   const isExpanded = expandedRunners.has(runner.userId);
                   const votedCount = runner.passwords.filter(
-                    (pw: PasswordVoteSummaryResponse) => pw.votes.length > 0
+                    (pw: PasswordVoteSummaryResponse) => !needsNewVote(pw)
                   ).length;
 
                   return (
@@ -742,12 +792,11 @@ const JudgePage = () => {
                         <CardContent className="pt-0">
                           <div className="space-y-3 mt-4">
                             {runner.passwords.map((password: PasswordVoteSummaryResponse) => {
-                              const existingVote = getExistingVote(password.passwordId);
-                              const voteInfo = existingVote
-                                ? getVoteInfo(existingVote.vote)
-                                : null;
-                              const VoteIcon = voteInfo?.icon;
-                              const canChange = canChangeVote(existingVote);
+                              const lastVote = getLastVote(password);
+                              const showNewVoteButtons = needsNewVote(password);
+                              const canChangeLast = canChangeVote(lastVote);
+                              const roundNumber = password.votes.length + (showNewVoteButtons ? 1 : 0);
+                              const allJudgesVotes = getAllJudgesVotes(password.passwordId);
 
                               return (
                                 <div
@@ -774,167 +823,152 @@ const JudgePage = () => {
                                           >
                                             {password.passwordStatus}
                                           </span>
+                                          {password.votes.length > 1 && (
+                                            <span className="text-xs text-muted-foreground">
+                                              {password.votes.length} boi(s)
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
                                     </div>
 
-                                    {/* Coluna direita: votação */}
-                                    <div className="flex-1">
-                                      <div className="flex flex-col sm:flex-row items-center gap-3">
-                                        {existingVote && VoteIcon && (
-                                          <div
-                                            className={`flex items-center gap-1 px-3 py-1 rounded-full ${voteInfo.bgColor}`}
-                                          >
-                                            <VoteIcon
-                                              className={`h-4 w-4 ${voteInfo.color}`}
-                                            />
-                                            <span
-                                              className={`text-sm font-medium ${voteInfo.color}`}
-                                            >
-                                              {voteInfo.label}
-                                            </span>
-                                            {canChange && (
-                                              <span className="text-xs text-blue-600 ml-1">
-                                                (Editável)
+                                    <div className="flex-1 space-y-3">
+                                      <div className="space-y-2">
+                                        {password.votes.map((vote, idx) => {
+                                          const info = getVoteInfo(vote.vote);
+                                          const Icon = info.icon;
+                                          const isLast = idx === password.votes.length - 1;
+                                          const editable = isLast && canChangeLast;
+
+                                          return (
+                                            <div key={vote.scoreId} className="flex items-center gap-3">
+                                              {password.votes.length > 1 && (
+                                                <span className="text-xs font-semibold text-muted-foreground w-12">
+                                                  Boi {idx + 1}
+                                                </span>
+                                              )}
+                                              <div
+                                                className={`flex items-center gap-1 px-3 py-1 rounded-full ${info.bgColor}`}
+                                              >
+                                                <Icon className={`h-4 w-4 ${info.color}`} />
+                                                <span className={`text-sm font-medium ${info.color}`}>
+                                                  {info.label}
+                                                </span>
+                                                {editable && (
+                                                  <span className="text-xs text-blue-600 ml-1">(Editável)</span>
+                                                )}
+                                              </div>
+                                              {editable && (
+                                                <div className="flex flex-wrap gap-1">
+                                                  <Button
+                                                    size="sm"
+                                                    className="bg-green-600 hover:bg-green-700 h-7 text-xs"
+                                                    onClick={() => handleUpdateVote(vote.scoreId, password.passwordId, JudgeVoteEnum.VALID)}
+                                                    disabled={submittingVote === password.passwordId}
+                                                  >
+                                                    <ThumbsUp className="h-3 w-3 mr-1" />Valeu
+                                                  </Button>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="text-yellow-600 border-yellow-200 hover:bg-yellow-50 h-7 text-xs"
+                                                    onClick={() => handleUpdateVote(vote.scoreId, password.passwordId, JudgeVoteEnum.NULL)}
+                                                    disabled={submittingVote === password.passwordId}
+                                                  >
+                                                    <Ban className="h-3 w-3 mr-1" />Zero
+                                                  </Button>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="text-red-600 border-red-200 hover:bg-red-50 h-7 text-xs"
+                                                    onClick={() => handleUpdateVote(vote.scoreId, password.passwordId, JudgeVoteEnum.DID_NOT_RUN)}
+                                                    disabled={submittingVote === password.passwordId}
+                                                  >
+                                                    <SkipForward className="h-3 w-3 mr-1" />Retorno
+                                                  </Button>
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+
+                                        {showNewVoteButtons && (
+                                          <div className="flex items-center gap-3">
+                                            {password.votes.length > 0 && (
+                                              <span className="text-xs font-semibold text-orange-600 w-12">
+                                                Boi {roundNumber}
                                               </span>
                                             )}
+                                            <div className="flex flex-wrap gap-2">
+                                              <Button
+                                                size="sm"
+                                                className="bg-green-600 hover:bg-green-700"
+                                                onClick={() => handleVote(password.passwordId, JudgeVoteEnum.VALID)}
+                                                disabled={submittingVote === password.passwordId}
+                                              >
+                                                <ThumbsUp className="h-4 w-4 mr-1" />Valeu
+                                              </Button>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-yellow-600 border-yellow-200 hover:bg-yellow-50"
+                                                onClick={() => handleVote(password.passwordId, JudgeVoteEnum.NULL)}
+                                                disabled={submittingVote === password.passwordId}
+                                              >
+                                                <Ban className="h-4 w-4 mr-1" />Zero
+                                              </Button>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                                onClick={() => handleVote(password.passwordId, JudgeVoteEnum.TV)}
+                                                disabled={submittingVote === password.passwordId}
+                                              >
+                                                <Tv className="h-4 w-4 mr-1" />TV
+                                              </Button>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-red-600 border-red-200 hover:bg-red-50"
+                                                onClick={() => handleVote(password.passwordId, JudgeVoteEnum.DID_NOT_RUN)}
+                                                disabled={submittingVote === password.passwordId}
+                                              >
+                                                <SkipForward className="h-4 w-4 mr-1" />Retorno
+                                              </Button>
+                                            </div>
                                           </div>
                                         )}
-                                        {!existingVote ? (
-                                          <div className="flex flex-wrap gap-2">
-                                            <Button
-                                              size="sm"
-                                              className="bg-green-600 hover:bg-green-700"
-                                              onClick={() =>
-                                                handleVote(
-                                                  password.passwordId,
-                                                  JudgeVoteEnum.VALID
-                                                )
-                                              }
-                                              disabled={
-                                                submittingVote ===
-                                                password.passwordId
-                                              }
-                                            >
-                                              <ThumbsUp className="h-4 w-4 mr-1" />
-                                              Valeu
-                                            </Button>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              className="text-yellow-600 border-yellow-200 hover:bg-yellow-50"
-                                              onClick={() =>
-                                                handleVote(
-                                                  password.passwordId,
-                                                  JudgeVoteEnum.NULL
-                                                )
-                                              }
-                                              disabled={
-                                                submittingVote ===
-                                                password.passwordId
-                                              }
-                                            >
-                                              <Ban className="h-4 w-4 mr-1" />
-                                              Zero
-                                            </Button>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                              onClick={() =>
-                                                handleVote(
-                                                  password.passwordId,
-                                                  JudgeVoteEnum.TV
-                                                )
-                                              }
-                                              disabled={
-                                                submittingVote ===
-                                                password.passwordId
-                                              }
-                                            >
-                                              <Tv className="h-4 w-4 mr-1" />
-                                              TV
-                                            </Button>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              className="text-red-600 border-red-200 hover:bg-red-50"
-                                              onClick={() =>
-                                                handleVote(
-                                                  password.passwordId,
-                                                  JudgeVoteEnum.DID_NOT_RUN
-                                                )
-                                              }
-                                              disabled={
-                                                submittingVote ===
-                                                password.passwordId
-                                              }
-                                            >
-                                              <SkipForward className="h-4 w-4 mr-1" />
-                                              Retorno
-                                            </Button>
-                                          </div>
-                                        ) : canChange ? (
-                                          <div className="flex flex-wrap gap-2">
-                                            <Button
-                                              size="sm"
-                                              className="bg-green-600 hover:bg-green-700"
-                                              onClick={() =>
-                                                handleUpdateVote(
-                                                  existingVote.scoreId,
-                                                  password.passwordId,
-                                                  JudgeVoteEnum.VALID
-                                                )
-                                              }
-                                              disabled={
-                                                submittingVote ===
-                                                password.passwordId
-                                              }
-                                            >
-                                              <ThumbsUp className="h-4 w-4 mr-1" />
-                                              Valeu
-                                            </Button>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              className="text-yellow-600 border-yellow-200 hover:bg-yellow-50"
-                                              onClick={() =>
-                                                handleUpdateVote(
-                                                  existingVote.scoreId,
-                                                  password.passwordId,
-                                                  JudgeVoteEnum.NULL
-                                                )
-                                              }
-                                              disabled={
-                                                submittingVote ===
-                                                password.passwordId
-                                              }
-                                            >
-                                              <Ban className="h-4 w-4 mr-1" />
-                                              Zero
-                                            </Button>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              className="text-red-600 border-red-200 hover:bg-red-50"
-                                              onClick={() =>
-                                                handleUpdateVote(
-                                                  existingVote.scoreId,
-                                                  password.passwordId,
-                                                  JudgeVoteEnum.DID_NOT_RUN
-                                                )
-                                              }
-                                              disabled={
-                                                submittingVote ===
-                                                password.passwordId
-                                              }
-                                            >
-                                              <SkipForward className="h-4 w-4 mr-1" />
-                                              Retorno
-                                            </Button>
-                                          </div>
-                                        ) : null}
                                       </div>
+
+                                      {allJudgesVotes.length > 0 && (
+                                        <div className="border-t pt-2 mt-2">
+                                          <p className="text-xs font-semibold text-muted-foreground mb-2">
+                                            Votos de todos os juízes
+                                          </p>
+                                          <div className="flex flex-wrap gap-2">
+                                            {allJudgesVotes.map((vote) => {
+                                              const info = getVoteInfo(vote.vote);
+                                              const Icon = info.icon;
+                                              const isMe = vote.judgeId === user?.id;
+
+                                              return (
+                                                <div
+                                                  key={vote.scoreId}
+                                                  className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${info.bgColor} ${isMe ? "ring-2 ring-primary/40" : ""}`}
+                                                >
+                                                  <span className="text-xs truncate max-w-20">
+                                                    {isMe ? "Eu" : vote.judgeName}:
+                                                  </span>
+                                                  <Icon className={`h-3 w-3 ${info.color}`} />
+                                                  <span className={`text-xs font-medium ${info.color}`}>
+                                                    {info.label}
+                                                  </span>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
