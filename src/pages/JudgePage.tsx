@@ -181,7 +181,6 @@ const JudgePage = () => {
         vote,
       });
 
-      // Optimistically update voteSummary
       setVoteSummary((prev) => {
         if (!prev) return prev;
         const updated = {
@@ -481,7 +480,6 @@ const JudgePage = () => {
               </p>
             </div>
 
-            {/* Search Bar */}
             <div className="max-w-xl mx-auto mb-8">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -618,7 +616,6 @@ const JudgePage = () => {
             )}
           </div>
         ) : (
-          // Lista de senhas do evento selecionado agrupadas por corredor
           <div>
             <div className="flex items-center gap-4 mb-6">
               <div>
@@ -634,7 +631,6 @@ const JudgePage = () => {
               </div>
             </div>
 
-            {/* Estatísticas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <Card>
                 <CardContent className="pt-6">
@@ -804,7 +800,6 @@ const JudgePage = () => {
                                   className="border rounded-xl p-4 bg-card hover:shadow-md transition-shadow"
                                 >
                                   <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                                    {/* Coluna esquerda: número da senha */}
                                     <div className="flex-shrink-0 lg:w-48">
                                       <div className="text-center lg:text-left mb-2">
                                         <span className="text-3xl font-bold text-primary">

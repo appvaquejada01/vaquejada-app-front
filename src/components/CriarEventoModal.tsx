@@ -56,7 +56,7 @@ import {
   addJudgeToEvent,
   addSpeakerToEvent,
 } from "@/lib/services/staff.service";
-import { listCategories, createCategory } from "@/lib/services/category.service";
+import { listCategories } from "@/lib/services/category.service";
 import { GetUserResponse } from "@/types/api";
 import { getCategoryNameMap } from "@/types/enums/enum-maps";
 
@@ -228,7 +228,6 @@ export const CriarEventoModal = ({
     tryInit();
   }, []);
 
-  // Create Staff
   const [showCreateJudge, setShowCreateJudge] = useState(false);
   const [showCreateSpeaker, setShowCreateSpeaker] = useState(false);
   const [creatingStaff, setCreatingStaff] = useState(false);
@@ -239,16 +238,12 @@ export const CriarEventoModal = ({
     ...emptyStaffForm,
   });
 
-  // Categories
   const [availableCategories, setAvailableCategories] = useState<
     { id: string; name: string }[]
   >([]);
   const [eventCategories, setEventCategories] = useState<EventCategoryForm[]>(
     []
   );
-  const [showCreateCategory, setShowCreateCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [creatingCategory, setCreatingCategory] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -312,7 +307,6 @@ export const CriarEventoModal = ({
     });
   }, []);
 
-  // Reverse geocoding via SDK
   const reverseGeocodeHere = useCallback(async (lat: number, lng: number) => {
     try {
       const svc = await getSearchService();
@@ -327,10 +321,11 @@ export const CriarEventoModal = ({
         const address = street ? (houseNumber ? `${street}, ${houseNumber}` : street) : item.title || "";
         setFormData((prev) => ({ ...prev, address, city, state }));
       }, () => {});
-    } catch { /* silencioso */ }
+    } catch {
+      /* noop */
+    }
   }, [getSearchService]);
 
-  // Autosuggest via SDK
   const fetchSuggestions = useCallback(async (query: string) => {
     if (!query || query.length < 3) { setSuggestions([]); return; }
     try {
@@ -343,7 +338,6 @@ export const CriarEventoModal = ({
     } catch { setSuggestions([]); }
   }, [getSearchService]);
 
-  // Forward geocoding via SDK — mover mapa quando usuário digita
   useEffect(() => {
     if (!mapQuery || !mapInstanceRef.current) return;
     getSearchService().then((svc) => {
@@ -392,7 +386,6 @@ export const CriarEventoModal = ({
     setFormData((prev) => ({ ...prev, address, city, state }));
     setSuggestions([]);
     setShowSuggestions(false);
-    // mover mapa para a posição selecionada
     if (item.position && mapInstanceRef.current) {
       const { lat, lng } = item.position;
       mapInstanceRef.current.setCenter({ lat, lng });
@@ -402,7 +395,6 @@ export const CriarEventoModal = ({
         markerRef.current.setVisibility(true);
       }
     }
-    // disparar forward geocode após pequena espera para atualizar mapQuery
     setTimeout(() => setMapQuery([address, city, state].filter(Boolean).join(", ")), 50);
   };
 
@@ -414,8 +406,8 @@ export const CriarEventoModal = ({
       ]);
       setAvailableJudges(Array.isArray(judges) ? judges : []);
       setAvailableSpeakers(Array.isArray(speakers) ? speakers : []);
-    } catch {
-      // Falha ao carregar staff
+    } catch (err) {
+      console.error("Erro ao carregar staff:", err);
     }
   };
 
@@ -558,46 +550,6 @@ export const CriarEventoModal = ({
     }
   };
 
-  const handleCreateCategory = async () => {
-    if (!newCategoryName.trim()) {
-      toast({
-        title: "Nome obrigatório",
-        description: "Digite o nome da nova categoria",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setCreatingCategory(true);
-    try {
-      const response = await createCategory({
-        name: CategoryNameEnum.CUSTOM,
-        description: newCategoryName.trim(),
-      });
-
-      const newCat = {
-        id: response.id,
-        name: newCategoryName.trim(),
-      };
-      setAvailableCategories((prev) => [...prev, newCat]);
-      setNewCategoryName("");
-      setShowCreateCategory(false);
-      toast({
-        title: "Categoria criada!",
-        description: `A categoria "${newCategoryName.trim()}" foi criada com sucesso.`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Erro ao criar categoria",
-        description: error?.response?.data?.message || "Tente novamente",
-        variant: "destructive",
-      });
-    } finally {
-      setCreatingCategory(false);
-    }
-  };
-
-  // Categories
   const addEventCategory = () => {
     setEventCategories((prev) => [
       ...prev,
@@ -701,6 +653,47 @@ export const CriarEventoModal = ({
         return;
       }
 
+      for (let i = 0; i < eventCategories.length; i++) {
+        const cat = eventCategories[i];
+        if (!cat.categoryId) continue;
+        const catStart = cat.startAt ? new Date(cat.startAt) : null;
+        const catEnd = cat.endAt ? new Date(cat.endAt) : null;
+
+        if (catStart && (catStart < startDate || catStart > endDate)) {
+          toast({
+            title: "Data da categoria inválida",
+            description: `A data de início da categoria ${
+              cat.categoryName || i + 1
+            } deve estar entre o início e o término do evento`,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+        if (catEnd && (catEnd < startDate || catEnd > endDate)) {
+          toast({
+            title: "Data da categoria inválida",
+            description: `A data de término da categoria ${
+              cat.categoryName || i + 1
+            } deve estar entre o início e o término do evento`,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+        if (catStart && catEnd && catStart > catEnd) {
+          toast({
+            title: "Data da categoria inválida",
+            description: `A data de início da categoria ${
+              cat.categoryName || i + 1
+            } deve ser anterior ao término`,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       const token = localStorage.getItem("token");
       if (!token) {
         toast({
@@ -789,7 +782,6 @@ export const CriarEventoModal = ({
         const eventId = response.id;
 
         if (eventId) {
-          // Add judges and speakers
           const staffPromises: Promise<void>[] = [];
           for (const judge of selectedJudges) {
             staffPromises.push(addJudgeToEvent(eventId, judge.id));
@@ -808,7 +800,6 @@ export const CriarEventoModal = ({
             });
           }
 
-          // Create event categories
           const validCategories = eventCategories.filter(
             (cat) => cat.categoryId && cat.price
           );
@@ -1672,54 +1663,6 @@ export const CriarEventoModal = ({
                 </Button>
               </div>
 
-              {!showCreateCategory ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-primary"
-                  onClick={() => setShowCreateCategory(true)}
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Criar nova categoria personalizada
-                </Button>
-              ) : (
-                <Card className="p-4 border-2 border-primary/20 bg-primary/5">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-semibold">Nova Categoria</p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowCreateCategory(false);
-                        setNewCategoryName("");
-                      }}
-                      className="h-7 w-7 p-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Nome da categoria (ex: Amador Regional)"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      className="h-9 text-sm rounded-lg flex-1"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleCreateCategory}
-                      disabled={creatingCategory}
-                      className="rounded-lg"
-                    >
-                      {creatingCategory ? "Criando..." : "Criar"}
-                    </Button>
-                  </div>
-                </Card>
-              )}
-
               {eventCategories.length === 0 && (
                 <p className="text-xs text-muted-foreground">
                   Nenhuma categoria adicionada. Você pode adicionar categorias
@@ -1880,6 +1823,8 @@ export const CriarEventoModal = ({
                             e.target.value
                           )
                         }
+                        min={formData.startAt || undefined}
+                        max={formData.endAt || undefined}
                         className="h-9 text-sm rounded-lg"
                       />
                     </div>
@@ -1896,6 +1841,8 @@ export const CriarEventoModal = ({
                             e.target.value
                           )
                         }
+                        min={cat.startAt || formData.startAt || undefined}
+                        max={formData.endAt || undefined}
                         className="h-9 text-sm rounded-lg"
                       />
                     </div>

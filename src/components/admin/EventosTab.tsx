@@ -451,7 +451,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validar tipo de arquivo
       if (!file.type.startsWith("image/")) {
         toast({
           title: "Erro",
@@ -461,7 +460,6 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         return;
       }
 
-      // Validar tamanho do arquivo (5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Erro",
@@ -617,6 +615,38 @@ export const EventosTab: React.FC<EventosTabProps> = ({
         variant: "destructive",
       });
       return;
+    }
+
+    const eventStart = formData.startAt
+      ? new Date(formData.startAt.includes("T") ? formData.startAt : `${formData.startAt}T12:00:00.000Z`)
+      : null;
+    const eventEnd = formData.endAt
+      ? new Date(formData.endAt.includes("T") ? formData.endAt : `${formData.endAt}T12:00:00.000Z`)
+      : null;
+
+    for (let i = 0; i < categoriasDoEvento.length; i++) {
+      const cat = categoriasDoEvento[i];
+      const catStart = cat.startAt
+        ? new Date(cat.startAt.includes("T") ? cat.startAt : `${cat.startAt}T12:00:00.000Z`)
+        : null;
+      const catEnd = cat.endAt
+        ? new Date(cat.endAt.includes("T") ? cat.endAt : `${cat.endAt}T12:00:00.000Z`)
+        : null;
+
+      if (eventStart && eventEnd) {
+        if (catStart && (catStart < eventStart || catStart > eventEnd)) {
+          toast({ title: "Erro", description: `Categoria ${i + 1}: data de início deve estar entre o início e o término do evento.`, variant: "destructive" });
+          return;
+        }
+        if (catEnd && (catEnd < eventStart || catEnd > eventEnd)) {
+          toast({ title: "Erro", description: `Categoria ${i + 1}: data de término deve estar entre o início e o término do evento.`, variant: "destructive" });
+          return;
+        }
+      }
+      if (catStart && catEnd && catStart > catEnd) {
+        toast({ title: "Erro", description: `Categoria ${i + 1}: a data de início deve ser anterior ao término.`, variant: "destructive" });
+        return;
+      }
     }
 
     try {
@@ -1385,6 +1415,8 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                             onChange={(e) =>
                               updateCategoria(index, "startAt", e.target.value)
                             }
+                            min={(formData.startAt || "").split("T")[0] || undefined}
+                            max={(formData.endAt || "").split("T")[0] || undefined}
                             className="bg-background"
                           />
                         </div>
@@ -1400,6 +1432,8 @@ export const EventosTab: React.FC<EventosTabProps> = ({
                             onChange={(e) =>
                               updateCategoria(index, "endAt", e.target.value)
                             }
+                            min={((categoria.startAt || formData.startAt) || "").split("T")[0] || undefined}
+                            max={(formData.endAt || "").split("T")[0] || undefined}
                             className="bg-background"
                           />
                         </div>

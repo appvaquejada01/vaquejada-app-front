@@ -202,7 +202,6 @@ export const DetalhesInscricaoModal = ({
 
           <Separator />
 
-          {/* Informações do Evento */}
           <div className="space-y-4">
             <h4 className="font-semibold text-lg flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
@@ -277,7 +276,6 @@ export const DetalhesInscricaoModal = ({
 
           <Separator />
 
-          {/* Informações de Pagamento */}
           {(() => {
             const totalPago = inscricao.passwords?.reduce(
               (sum, p) => sum + Number(p.price),
@@ -353,7 +351,6 @@ export const DetalhesInscricaoModal = ({
             );
           })()}
 
-          {/* Botões de Ação */}
           <div className="flex justify-between items-center pt-4 border-t">
             <div className="text-sm text-muted-foreground">
               ID: {inscricao.id || "N/A"}

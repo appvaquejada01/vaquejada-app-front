@@ -117,15 +117,11 @@ const PasswordCard = ({
 
   return (
     <div className="border rounded-xl p-4 bg-card hover:shadow-md transition-shadow">
-      {/* Layout horizontal: Info à esquerda, Votos à direita */}
       <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-        {/* Coluna esquerda: Número da senha e info do corredor */}
         <div className="flex-shrink-0 lg:w-48">
-          {/* Número da senha em destaque */}
           <div className="text-center lg:text-left mb-2">
             <span className="text-3xl font-bold text-primary">#{password.passwordNumber}</span>
           </div>
-          {/* Info do corredor */}
           <div className="text-center lg:text-left">
             <p className="text-sm font-medium text-foreground">{runnerName}</p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -154,11 +150,9 @@ const PasswordCard = ({
           </div>
         </div>
 
-        {/* Coluna direita: Votos dos juízes */}
         <div className="flex-1">
           {voteStats.total > 0 ? (
             <div className="space-y-3">
-              {/* Resumo de votos */}
               <div className="flex flex-wrap gap-3 text-xs">
                 <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded-full">
                   <ThumbsUp className="h-3 w-3" />
@@ -178,7 +172,6 @@ const PasswordCard = ({
                 </div>
               </div>
 
-              {/* Votos individuais */}
               <div className="flex flex-wrap gap-2">
                 {password.votes.map((vote) => {
                   const voteInfo = getVoteInfo(vote.vote);
